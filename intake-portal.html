@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HR Intake Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #1c2126;
+    --ink-soft: #565f68;
+    --line: #d9dde1;
+    --surface: #ffffff;
+    --page: #f4f5f6;
+    --accent: #2c4a52;
+    --accent-soft: #e8edee;
+    --error: #a3352b;
+    --error-soft: #f7e9e7;
+    --ok: #2c6b4f;
+    --ok-soft: #e6f0ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .shell {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+  }
+  header.top h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
+  #signOutBtn {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  #signOutBtn:hover { color: var(--ink); text-decoration: underline; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 4px;
+    cursor: pointer;
+    margin-right: 20px;
+  }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Auth card */
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 32px;
+    max-width: 380px;
+    margin: 64px auto 0;
+  }
+  .auth-card h2 { font-size: 16px; margin: 0 0 4px; }
+  .auth-card p.sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font-family: inherit; cursor: pointer; }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toggle-row { text-align: center; margin-top: 16px; font-size: 13px; color: var(--ink-soft); }
+  .toggle-row button {
+    background: none; border: none; color: var(--accent);
+    font-size: 13px; padding: 0; text-decoration: underline;
+  }
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; }
+  .msg.error { background: var(--error-soft); color: var(--error); }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+
+  /* Sections */
+  section.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  section.panel h2 { font-size: 15px; margin: 0 0 4px; }
+  section.panel p.desc { color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; }
+  .upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type="file"] { flex: 1; min-width: 160px; font-size: 13px; }
+  select {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .btn-secondary {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: none;
+    border-radius: 4px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  ul.file-list { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  ul.file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  ul.file-list li .info { display: flex; flex-direction: column; gap: 2px; }
+  ul.file-list li .name { color: var(--ink); }
+  ul.file-list li .email { color: var(--ink-soft); font-size: 12px; }
+  ul.file-list li .actions { display: flex; align-items: center; gap: 10px; }
+  ul.file-list li .status { color: var(--ink-soft); font-size: 12px; }
+  ul.file-list a { color: var(--accent); text-decoration: none; font-size: 13px; }
+  ul.file-list a:hover { text-decoration: underline; }
+  .empty { color: var(--ink-soft); font-size: 13px; padding: 10px 0 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ===== Auth view ===== -->
+  <div id="authView">
+    <div class="auth-card">
+      <h2 id="authTitle">Sign in</h2>
+      <p class="sub" id="authSub">Access your documents, timesheets and paystubs.</p>
+      <div id="authMsg"></div>
+      <form id="authForm">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email" />
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password" />
+        <button type="submit" class="btn-primary" id="authSubmitBtn">Sign in</button>
+      </form>
+      <div class="toggle-row">
+        <span id="toggleLabel">Don't have an account?</span>
+        <button type="button" id="toggleModeBtn">Create one</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== App view ===== -->
+  <div id="appView" class="hidden">
+    <header class="top">
+      <h1>HR Intake Portal</h1>
+      <button id="signOutBtn">Sign out</button>
+    </header>
+
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" id="tabPortalBtn">My Portal</button>
+      <button class="tab-btn hidden" id="tabAdminBtn">Admin Review</button>
+    </div>
+
+    <!-- Employee view -->
+    <div id="portalTab">
+      <section class="panel">
+        <h2>Documents</h2>
+        <p class="desc">Upload confidential documents for HR review.</p>
+        <div class="upload-row">
+          <input type="file" id="documentsFile" />
+          <button class="btn-secondary" data-bucket="documents" data-table="documents">Upload</button>
+        </div>
+        <div id="documentsMsg"></div>
+        <ul class="file-list" id="documentsList"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Timesheets</h2>
+        <p class="desc">Submit your timesheet for the current pay period.</p>
+        <div class="upload-row">
+          <input type="file" id="timesheetsFile" />
+          <button class="btn-secondary" data-bucket="timesheets" data-table="timesheets">Upload</button>
+        </div>
+        <div id="timesheetsMsg"></div>
+        <ul class="file-list" id="timesheetsList"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Paystubs</h2>
+        <p class="desc">Issued by payroll. View and download only.</p>
+        <ul class="file-list" id="paystubsList"></ul>
+        <p class="empty hidden" id="paystubsEmpty">No paystubs on file yet.</p>
+      </section>
+    </div>
+
+    <!-- Admin view -->
+    <div id="adminTab" class="hidden">
+      <section class="panel">
+        <h2>Documents — all submissions</h2>
+        <div id="adminDocumentsMsg"></div>
+        <ul class="file-list" id="adminDocumentsList"></ul>
+        <p class="empty hidden" id="adminDocumentsEmpty">No documents submitted yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Timesheets — all submissions</h2>
+        <div id="adminTimesheetsMsg"></div>
+        <ul class="file-list" id="adminTimesheetsList"></ul>
+        <p class="empty hidden" id="adminTimesheetsEmpty">No timesheets submitted yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Issue a paystub</h2>
+        <p class="desc">Select an employee and upload their paystub file.</p>
+        <div class="upload-row">
+          <select id="paystubEmployeeSelect"></select>
+          <input type="file" id="adminPaystubFile" />
+          <button class="btn-secondary" id="adminPaystubUploadBtn">Issue</button>
+        </div>
+        <div id="adminPaystubMsg"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Paystubs — all issued</h2>
+        <ul class="file-list" id="adminPaystubsList"></ul>
+        <p class="empty hidden" id="adminPaystubsEmpty">No paystubs issued yet.</p>
+      </section>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ---- Configuration ----
+  const SUPABASE_URL = "https://wywlcvnlzeylmaglfkod.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_lgGcPg15iVBslMSbCK_zZw_gZhoLbYI";
+  // -----------------------
+
+  const { createClient } = supabase;
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const authView = document.getElementById("authView");
+  const appView = document.getElementById("appView");
+  const authForm = document.getElementById("authForm");
+  const authTitle = document.getElementById("authTitle");
+  const authSub = document.getElementById("authSub");
+  const authSubmitBtn = document.getElementById("authSubmitBtn");
+  const authMsg = document.getElementById("authMsg");
+  const toggleModeBtn = document.getElementById("toggleModeBtn");
+  const toggleLabel = document.getElementById("toggleLabel");
+
+  let mode = "signin";
+  let isAdmin = false;
+  let profileMap = new Map();
+
+  toggleModeBtn.addEventListener("click", () => {
+    mode = mode === "signin" ? "signup" : "signin";
+    if (mode === "signup") {
+      authTitle.textContent = "Create account";
+      authSub.textContent = "Set up access to the intake portal.";
+      authSubmitBtn.textContent = "Create account";
+      toggleLabel.textContent = "Already have an account?";
+      toggleModeBtn.textContent = "Sign in";
+    } else {
+      authTitle.textContent = "Sign in";
+      authSub.textContent = "Access your documents, timesheets and paystubs.";
+      authSubmitBtn.textContent = "Sign in";
+      toggleLabel.textContent = "Don't have an account?";
+      toggleModeBtn.textContent = "Create one";
+    }
+    authMsg.innerHTML = "";
+  });
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    authSubmitBtn.disabled = true;
+    authMsg.innerHTML = "";
+
+    const { error } =
+      mode === "signup"
+        ? await client.auth.signUp({ email, password })
+        : await client.auth.signInWithPassword({ email, password });
+
+    authSubmitBtn.disabled = false;
+
+    if (error) {
+      authMsg.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    if (mode === "signup") {
+      authMsg.innerHTML = `<div class="msg ok">Account created. Check your email to confirm, then sign in.</div>`;
+      return;
+    }
+    await showApp();
+  });
+
+  document.getElementById("signOutBtn").addEventListener("click", async () => {
+    await client.auth.signOut();
+    appView.classList.add("hidden");
+    authView.classList.remove("hidden");
+    authForm.reset();
+  });
+
+  // ---- Tabs ----
+  const tabPortalBtn = document.getElementById("tabPortalBtn");
+  const tabAdminBtn = document.getElementById("tabAdminBtn");
+  const portalTab = document.getElementById("portalTab");
+  const adminTab = document.getElementById("adminTab");
+
+  tabPortalBtn.addEventListener("click", () => {
+    tabPortalBtn.classList.add("active");
+    tabAdminBtn.classList.remove("active");
+    portalTab.classList.remove("hidden");
+    adminTab.classList.add("hidden");
+  });
+  tabAdminBtn.addEventListener("click", () => {
+    tabAdminBtn.classList.add("active");
+    tabPortalBtn.classList.remove("active");
+    adminTab.classList.remove("hidden");
+    portalTab.classList.add("hidden");
+  });
+
+  // ---- Employee upload handling ----
+  document.querySelectorAll("[data-bucket]").forEach((btn) => {
+    btn.addEventListener("click", () => handleUpload(btn.dataset.bucket, btn.dataset.table));
+  });
+
+  async function handleUpload(bucket, table) {
+    const fileInput = document.getElementById(`${bucket}File`);
+    const msgEl = document.getElementById(`${bucket}Msg`);
+    const file = fileInput.files[0];
+    if (!file) {
+      msgEl.innerHTML = `<div class="msg error">Choose a file first.</div>`;
+      return;
+    }
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+
+    const path = `${user.id}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await client.storage.from(bucket).upload(path, file);
+    if (uploadError) {
+      msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+      return;
+    }
+    const { error: insertError } = await client
+      .from(table)
+      .insert({ user_id: user.id, status: "pending", file_path: path });
+
+    if (insertError) {
+      msgEl.innerHTML = `<div class="msg error">File uploaded but record failed: ${insertError.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Uploaded ${file.name}.</div>`;
+    fileInput.value = "";
+    loadList(bucket, table, bucket !== "paystubs");
+  }
+
+  // ---- Employee listing (own records only) ----
+  async function loadList(bucket, table, showDownload) {
+    const listEl = document.getElementById(`${bucket}List`);
+    const emptyEl = document.getElementById(`${bucket}Empty`);
+    listEl.innerHTML = "";
+
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+
+    const { data: rows, error } = await client
+      .from(table)
+      .select("id, status, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      if (emptyEl) emptyEl.classList.remove("hidden");
+      return;
+    }
+    if (emptyEl) emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      if (showDownload) {
+        const status = document.createElement("span");
+        status.className = "status";
+        status.textContent = row.status;
+        right.appendChild(status);
+      } else {
+        const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
+        const a = document.createElement("a");
+        a.href = signed ? signed.signedUrl : "#";
+        a.textContent = "Download";
+        a.target = "_blank";
+        right.appendChild(a);
+      }
+
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  // ---- Admin: profile map (user_id -> email) ----
+  async function loadProfileMap() {
+    const { data: rows } = await client.from("profiles").select("user_id, email");
+    profileMap = new Map((rows || []).map((r) => [r.user_id, r.email]));
+  }
+
+  function populateEmployeeSelect() {
+    const select = document.getElementById("paystubEmployeeSelect");
+    select.innerHTML = "";
+    for (const [userId, email] of profileMap.entries()) {
+      const opt = document.createElement("option");
+      opt.value = userId;
+      opt.textContent = email;
+      select.appendChild(opt);
+    }
+  }
+
+  // ---- Admin: review lists for documents/timesheets ----
+  async function loadAdminList(bucket, table) {
+    const listEl = document.getElementById(`admin${capitalize(bucket)}List`);
+    const emptyEl = document.getElementById(`admin${capitalize(bucket)}Empty`);
+    listEl.innerHTML = "";
+
+    const { data: rows, error } = await client
+      .from(table)
+      .select("id, user_id, status, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      if (emptyEl) emptyEl.classList.remove("hidden");
+      return;
+    }
+    if (emptyEl) emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+      const email = profileMap.get(row.user_id) || row.user_id;
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      const select = document.createElement("select");
+      ["pending", "approved", "rejected"].forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        if (s === row.status) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", () => updateStatus(table, row.id, select.value, bucket));
+
+      const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
+      const a = document.createElement("a");
+      a.href = signed ? signed.signedUrl : "#";
+      a.textContent = "Download";
+      a.target = "_blank";
+
+      right.appendChild(select);
+      right.appendChild(a);
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function updateStatus(table, id, newStatus, bucket) {
+    const msgEl = document.getElementById(`admin${capitalize(bucket)}Msg`);
+    const { error } = await client.from(table).update({ status: newStatus }).eq("id", id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">Update failed: ${error.message}</div>`;
+    } else {
+      msgEl.innerHTML = `<div class="msg ok">Status updated.</div>`;
+    }
+  }
+
+  // ---- Admin: issue paystub ----
+  document.getElementById("adminPaystubUploadBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("adminPaystubMsg");
+    const employeeId = document.getElementById("paystubEmployeeSelect").value;
+    const file = document.getElementById("adminPaystubFile").files[0];
+    if (!employeeId || !file) {
+      msgEl.innerHTML = `<div class="msg error">Select an employee and a file.</div>`;
+      return;
+    }
+    const path = `${employeeId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await client.storage.from("paystubs").upload(path, file);
+    if (uploadError) {
+      msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+      return;
+    }
+    const { error: insertError } = await client
+      .from("paystubs")
+      .insert({ user_id: employeeId, status: "issued", file_path: path });
+    if (insertError) {
+      msgEl.innerHTML = `<div class="msg error">File uploaded but record failed: ${insertError.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Paystub issued.</div>`;
+    document.getElementById("adminPaystubFile").value = "";
+    loadAdminPaystubs();
+  });
+
+  async function loadAdminPaystubs() {
+    const listEl = document.getElementById("adminPaystubsList");
+    const emptyEl = document.getElementById("adminPaystubsEmpty");
+    listEl.innerHTML = "";
+
+    const { data: rows, error } = await client
+      .from("paystubs")
+      .select("id, user_id, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+      const email = profileMap.get(row.user_id) || row.user_id;
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>`;
+
+      const { data: signed } = await client.storage.from("paystubs").createSignedUrl(row.file_path, 60 * 5);
+      const a = document.createElement("a");
+      a.href = signed ? signed.signedUrl : "#";
+      a.textContent = "Download";
+      a.target = "_blank";
+
+      li.appendChild(left);
+      li.appendChild(a);
+      listEl.appendChild(li);
+    }
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ---- Session bootstrap ----
+  async function showApp() {
+    authView.classList.add("hidden");
+    appView.classList.remove("hidden");
+
+    const { data: { user } } = await client.auth.getUser();
+
+    const { data: roleRow } = await client
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    isAdmin = roleRow && roleRow.role === "admin";
+
+    if (isAdmin) {
+      tabAdminBtn.classList.remove("hidden");
+      await loadProfileMap();
+      populateEmployeeSelect();
+      loadAdminList("documents", "documents");
+      loadAdminList("timesheets", "timesheets");
+      loadAdminPaystubs();
+    }
+
+    loadList("documents", "documents", true);
+    loadList("timesheets", "timesheets", true);
+    loadList("paystubs", "paystubs", false);
+  }
+
+  client.auth.getSession().then(({ data: { session } }) => {
+    if (session) showApp();
+  });
+</script>
+
+</body>
+</html>
