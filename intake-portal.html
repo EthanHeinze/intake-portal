@@ -357,6 +357,22 @@
   }
   .preview-link:hover { color: var(--link-hover); text-decoration: underline; }
 
+  .color-row { display: flex; gap: 24px; margin-bottom: 4px; }
+  .color-row > div { flex: 1; }
+  input[type="color"] {
+    width: 100%; height: 38px; padding: 3px;
+    border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+  }
+  .logo-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .logo-preview {
+    width: 44px; height: 44px; border-radius: 8px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; overflow: hidden; flex-shrink: 0;
+  }
+  .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .company-tagline { font-size: 12px; color: var(--ink-faint); margin: 2px 0 0; }
+
   @media (max-width: 520px) {
     .shell { padding: 36px 16px 72px; }
     section.panel { padding: 20px; }
@@ -396,10 +412,11 @@
   <div id="appView" class="hidden">
     <header class="top">
       <div class="brand">
-        <div class="brand-mark">HR</div>
+        <div class="brand-mark" id="brandMark">HR</div>
         <div>
-          <p class="eyebrow">Buzzflix</p>
+          <p class="eyebrow" id="brandEyebrow">Buzzflix</p>
           <h1>HR Intake Portal</h1>
+          <p class="company-tagline" id="brandTagline"></p>
         </div>
       </div>
       <button id="signOutBtn">Sign out</button>
@@ -445,6 +462,50 @@
 
     <!-- Admin view -->
     <div id="adminTab" class="hidden">
+      <section class="panel">
+        <h2>Company Settings</h2>
+        <p class="desc">Customize how the portal looks for your team.</p>
+        <label for="companyNameInput">Company name</label>
+        <input type="text" id="companyNameInput" />
+        <label for="companyTaglineInput">Tagline</label>
+        <input type="text" id="companyTaglineInput" />
+        <div class="color-row">
+          <div>
+            <label for="companyPrimaryColorInput">Primary color</label>
+            <input type="color" id="companyPrimaryColorInput" />
+          </div>
+          <div>
+            <label for="companyAccentColorInput">Accent color</label>
+            <input type="color" id="companyAccentColorInput" />
+          </div>
+        </div>
+        <button class="btn-secondary" id="saveCompanySettingsBtn">Save</button>
+        <div id="companySettingsMsg"></div>
+
+        <div class="logo-row">
+          <div class="logo-preview" id="companyLogoPreview">HR</div>
+          <input type="file" id="companyLogoFile" accept="image/*" />
+          <button class="btn-secondary" id="uploadLogoBtn">Upload logo</button>
+        </div>
+        <div id="companyLogoMsg"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Invite an employee</h2>
+        <p class="desc">They'll only be able to sign up once invited.</p>
+        <div class="upload-row">
+          <input type="email" id="inviteEmailInput" placeholder="employee@company.com" />
+          <select id="inviteRoleSelect">
+            <option value="employee" selected>Employee</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn-secondary" id="sendInviteBtn">Send Invite</button>
+        </div>
+        <div id="inviteMsg"></div>
+        <ul class="file-list" id="pendingInvitesList"></ul>
+        <p class="empty hidden" id="pendingInvitesEmpty">No pending invites.</p>
+      </section>
+
       <section class="panel">
         <h2>Documents — all submissions</h2>
         <div id="adminDocumentsMsg"></div>
@@ -514,6 +575,7 @@
   let mode = "signin";
   let isAdmin = false;
   let profileMap = new Map();
+  let currentCompany = null;
 
   toggleModeBtn.addEventListener("click", () => {
     mode = mode === "signin" ? "signup" : "signin";
@@ -988,6 +1050,155 @@
     loadList(bucket, bucket, true);
   }
 
+  function darken(hex, amt) {
+    let col = hex.replace("#", "");
+    if (col.length === 3) col = col.split("").map((c) => c + c).join("");
+    const num = parseInt(col, 16);
+    let r = Math.max(Math.min(255, (num >> 16) + amt), 0);
+    let g = Math.max(Math.min(255, ((num >> 8) & 0x00ff) + amt), 0);
+    let b = Math.max(Math.min(255, (num & 0x0000ff) + amt), 0);
+    return "#" + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+  }
+
+  async function loadCompanyBranding() {
+    const { data: company, error } = await client.from("companies").select("*").single();
+    if (error || !company) return;
+    currentCompany = company;
+
+    document.documentElement.style.setProperty("--accent", company.primary_color);
+    document.documentElement.style.setProperty("--accent-hover", darken(company.primary_color, -25));
+    document.documentElement.style.setProperty("--link", company.accent_color);
+    document.documentElement.style.setProperty("--link-hover", darken(company.accent_color, -25));
+
+    document.getElementById("brandEyebrow").textContent = company.name || "";
+    document.getElementById("brandTagline").textContent = company.tagline || "";
+
+    const mark = document.getElementById("brandMark");
+    const logoPreview = document.getElementById("companyLogoPreview");
+    if (company.logo_path) {
+      const { data: signed } = await client.storage.from("branding").createSignedUrl(company.logo_path, 60 * 60);
+      if (signed) {
+        mark.innerHTML = `<img src="${signed.signedUrl}" alt="logo" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`;
+        logoPreview.innerHTML = `<img src="${signed.signedUrl}" alt="logo" />`;
+      }
+    } else {
+      mark.textContent = "HR";
+      logoPreview.textContent = "HR";
+    }
+
+    if (isAdmin) {
+      document.getElementById("companyNameInput").value = company.name || "";
+      document.getElementById("companyTaglineInput").value = company.tagline || "";
+      document.getElementById("companyPrimaryColorInput").value = company.primary_color || "#1a1a1a";
+      document.getElementById("companyAccentColorInput").value = company.accent_color || "#b4550b";
+    }
+  }
+
+  document.getElementById("saveCompanySettingsBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("companySettingsMsg");
+    const name = document.getElementById("companyNameInput").value.trim();
+    const tagline = document.getElementById("companyTaglineInput").value.trim();
+    const primary_color = document.getElementById("companyPrimaryColorInput").value;
+    const accent_color = document.getElementById("companyAccentColorInput").value;
+
+    const { error } = await client
+      .from("companies")
+      .update({ name, tagline, primary_color, accent_color })
+      .eq("id", currentCompany.id);
+
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Saved.</div>`;
+    loadCompanyBranding();
+  });
+
+  document.getElementById("uploadLogoBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("companyLogoMsg");
+    const file = document.getElementById("companyLogoFile").files[0];
+    if (!file) {
+      msgEl.innerHTML = `<div class="msg error">Choose an image first.</div>`;
+      return;
+    }
+    const ext = file.name.split(".").pop();
+    const path = `${currentCompany.id}/logo.${ext}`;
+    const { error: uploadError } = await client.storage.from("branding").upload(path, file, { upsert: true });
+    if (uploadError) {
+      msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+      return;
+    }
+    const { error: updateError } = await client.from("companies").update({ logo_path: path }).eq("id", currentCompany.id);
+    if (updateError) {
+      msgEl.innerHTML = `<div class="msg error">${updateError.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Logo updated.</div>`;
+    document.getElementById("companyLogoFile").value = "";
+    loadCompanyBranding();
+  });
+
+  document.getElementById("sendInviteBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("inviteMsg");
+    const email = document.getElementById("inviteEmailInput").value.trim();
+    const role = document.getElementById("inviteRoleSelect").value;
+    if (!email) {
+      msgEl.innerHTML = `<div class="msg error">Enter an email first.</div>`;
+      return;
+    }
+    const { error } = await client.from("company_invites").insert({ company_id: currentCompany.id, email, role });
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Invite created for ${email}.</div>`;
+    document.getElementById("inviteEmailInput").value = "";
+    loadPendingInvites();
+  });
+
+  async function loadPendingInvites() {
+    const listEl = document.getElementById("pendingInvitesList");
+    const emptyEl = document.getElementById("pendingInvitesEmpty");
+    listEl.innerHTML = "";
+
+    const { data: rows, error } = await client
+      .from("company_invites")
+      .select("id, email, role, used, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${row.email}</span><span class="email">${row.role} · ${row.used ? "joined" : "pending"}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+      if (!row.used) {
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "remove-link";
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.addEventListener("click", () => cancelInvite(row.id));
+        right.appendChild(cancelBtn);
+      }
+
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function cancelInvite(id) {
+    await client.from("company_invites").delete().eq("id", id);
+    loadPendingInvites();
+  }
+
   // ---- Session bootstrap ----
   async function showApp() {
     authView.classList.add("hidden");
@@ -1010,7 +1221,10 @@
       loadAdminList("documents", "documents");
       loadAdminList("timesheets", "timesheets");
       loadAdminPaystubs();
+      loadPendingInvites();
     }
+
+    await loadCompanyBranding();
 
     loadList("documents", "documents", true);
     loadList("timesheets", "timesheets", true);
