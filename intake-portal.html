@@ -4,123 +4,157 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>HR Intake Portal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --ink: #1c2126;
-    --ink-soft: #565f68;
-    --line: #d9dde1;
+    --ink: #1a1a1a;
+    --ink-soft: #5c5648;
+    --ink-faint: #9a927e;
+    --line: #ece4cf;
     --surface: #ffffff;
-    --page: #f4f5f6;
-    --accent: #2c4a52;
-    --accent-soft: #e8edee;
-    --error: #a3352b;
-    --error-soft: #f7e9e7;
-    --ok: #2c6b4f;
-    --ok-soft: #e6f0ea;
+    --page: #fbf8f0;
+    --accent: #1a1a1a;
+    --accent-hover: #000000;
+    --accent-soft: #fdf0cd;
+    --accent-soft-hover: #fbe4a6;
+    --link: #b4550b;
+    --link-hover: #8f4108;
+    --brand-yellow: #ffd23f;
+    --error: #b3402f;
+    --error-soft: #fbebe8;
+    --ok: #1f7a4d;
+    --ok-soft: #e7f5ee;
+    --warn: #a8681b;
+    --warn-soft: #fbf1e2;
+    --info: #b4550b;
+    --info-soft: #fdf0cd;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20,24,28,0.04), 0 1px 12px rgba(20,24,28,0.05);
+  }
+  body::before {
+    content: "";
+    display: block;
+    height: 5px;
+    background: var(--brand-yellow);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--page);
     color: var(--ink);
-    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     font-size: 15px;
-    line-height: 1.5;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
   .shell {
-    max-width: 720px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 48px 24px 96px;
+    padding: 56px 24px 96px;
   }
   header.top {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 24px;
+    align-items: center;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 16px;
   }
-  header.top h1 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700;
+    flex-shrink: 0;
   }
+  header.top h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header.top .eyebrow { font-size: 12px; color: var(--link); margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
   #signOutBtn {
     background: none;
-    border: none;
+    border: 1px solid var(--line);
     color: var(--ink-soft);
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    padding: 4px 0;
+    padding: 7px 14px;
+    border-radius: 7px;
+    transition: all 0.15s ease;
   }
-  #signOutBtn:hover { color: var(--ink); text-decoration: underline; }
+  #signOutBtn:hover { color: var(--ink); border-color: var(--ink-faint); background: var(--surface); }
 
   /* Tabs */
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 24px;
-  }
+  .tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
   .tab-btn {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--ink-soft);
-    font-size: 14px;
-    font-weight: 600;
-    padding: 8px 4px;
-    cursor: pointer;
-    margin-right: 20px;
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--ink-faint); font-size: 14px; font-weight: 600;
+    padding: 10px 4px; cursor: pointer; margin-right: 24px;
+    transition: color 0.15s ease;
   }
-  .tab-btn.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
+  .tab-btn:hover { color: var(--ink-soft); }
+  .tab-btn.active { color: var(--link); border-bottom-color: var(--link); }
 
   /* Auth card */
+  .auth-wrap { display: flex; flex-direction: column; align-items: center; margin-top: 72px; }
+  .auth-mark {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; margin-bottom: 20px;
+  }
   .auth-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 32px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 36px;
+    width: 100%;
     max-width: 380px;
-    margin: 64px auto 0;
   }
-  .auth-card h2 { font-size: 16px; margin: 0 0 4px; }
-  .auth-card p.sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 24px; }
-  label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  .auth-card h2 { font-size: 18px; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  .auth-card p.sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 26px; }
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-soft); margin-bottom: 6px; }
   input[type="email"],
   input[type="password"] {
     width: 100%;
-    padding: 10px 12px;
+    padding: 10px 13px;
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: 7px;
     font-size: 14px;
-    margin-bottom: 16px;
-    background: var(--surface);
+    font-family: inherit;
+    margin-bottom: 17px;
+    background: var(--page);
     color: var(--ink);
+    transition: border-color 0.15s ease, background 0.15s ease;
   }
-  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:focus { outline: none; border-color: var(--link); background: var(--surface); }
   button { font-family: inherit; cursor: pointer; }
   .btn-primary {
     width: 100%;
     background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 4px;
+    border-radius: 7px;
     padding: 11px 16px;
     font-size: 14px;
     font-weight: 600;
+    transition: background 0.15s ease;
   }
-  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:hover { background: var(--accent-hover); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .toggle-row { text-align: center; margin-top: 16px; font-size: 13px; color: var(--ink-soft); }
+  .toggle-row { text-align: center; margin-top: 18px; font-size: 13px; color: var(--ink-faint); }
   .toggle-row button {
-    background: none; border: none; color: var(--accent);
-    font-size: 13px; padding: 0; text-decoration: underline;
+    background: none; border: none; color: var(--link);
+    font-size: 13px; font-weight: 600; padding: 0; margin-left: 2px;
   }
-  .msg { font-size: 13px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; }
+  .toggle-row button:hover { text-decoration: underline; }
+  .msg { font-size: 13px; padding: 10px 13px; border-radius: 7px; margin-bottom: 17px; font-weight: 500; }
   .msg.error { background: var(--error-soft); color: var(--error); }
   .msg.ok { background: var(--ok-soft); color: var(--ok); }
 
@@ -128,18 +162,21 @@
   section.panel {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 24px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 26px 28px;
     margin-bottom: 20px;
   }
-  section.panel h2 { font-size: 15px; margin: 0 0 4px; }
+  section.panel h2 { font-size: 15.5px; margin: 0 0 4px; font-weight: 600; letter-spacing: -0.01em; }
   section.panel p.desc { color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; }
   .upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  input[type="file"] { flex: 1; min-width: 160px; font-size: 13px; }
+  input[type="file"] {
+    flex: 1; min-width: 160px; font-size: 13px; color: var(--ink-soft);
+  }
   select {
-    padding: 8px 10px;
+    padding: 8px 11px;
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: 7px;
     font-size: 13px;
     font-family: inherit;
     background: var(--surface);
@@ -147,36 +184,65 @@
   }
   .btn-secondary {
     background: var(--accent-soft);
-    color: var(--accent);
+    color: var(--link);
     border: none;
-    border-radius: 4px;
-    padding: 9px 14px;
+    border-radius: 7px;
+    padding: 9px 16px;
     font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
+    transition: background 0.15s ease;
   }
+  .btn-secondary:hover { background: var(--accent-soft-hover); }
   .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  ul.file-list { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  ul.file-list { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); }
   ul.file-list li {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    padding: 13px 0;
     border-bottom: 1px solid var(--line);
-    font-size: 13px;
+    font-size: 13.5px;
     gap: 12px;
     flex-wrap: wrap;
   }
-  ul.file-list li .info { display: flex; flex-direction: column; gap: 2px; }
-  ul.file-list li .name { color: var(--ink); }
-  ul.file-list li .email { color: var(--ink-soft); font-size: 12px; }
-  ul.file-list li .actions { display: flex; align-items: center; gap: 10px; }
-  ul.file-list li .status { color: var(--ink-soft); font-size: 12px; }
-  ul.file-list a { color: var(--accent); text-decoration: none; font-size: 13px; }
-  ul.file-list a:hover { text-decoration: underline; }
-  .empty { color: var(--ink-soft); font-size: 13px; padding: 10px 0 0; }
+  ul.file-list li .info { display: flex; flex-direction: column; gap: 3px; }
+  ul.file-list li .name { color: var(--ink); font-weight: 500; }
+  ul.file-list li .email { color: var(--ink-faint); font-size: 12px; }
+  ul.file-list li .actions { display: flex; align-items: center; gap: 12px; }
+  ul.file-list a {
+    color: var(--link); text-decoration: none; font-size: 13px; font-weight: 600;
+  }
+  ul.file-list a:hover { color: var(--link-hover); text-decoration: underline; }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    text-transform: capitalize;
+  }
+  .status-pending { background: var(--warn-soft); color: var(--warn); }
+  .status-approved { background: var(--ok-soft); color: var(--ok); }
+  .status-rejected { background: var(--error-soft); color: var(--error); }
+  .status-issued { background: var(--info-soft); color: var(--info); }
+
+  .empty {
+    color: var(--ink-faint);
+    font-size: 13px;
+    padding: 16px 0 0;
+    text-align: center;
+  }
   .hidden { display: none !important; }
+
+  @media (max-width: 520px) {
+    .shell { padding: 36px 16px 72px; }
+    section.panel { padding: 20px; }
+    .upload-row { flex-direction: column; align-items: stretch; }
+    .btn-secondary { width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -185,20 +251,23 @@
 
   <!-- ===== Auth view ===== -->
   <div id="authView">
-    <div class="auth-card">
-      <h2 id="authTitle">Sign in</h2>
-      <p class="sub" id="authSub">Access your documents, timesheets and paystubs.</p>
-      <div id="authMsg"></div>
-      <form id="authForm">
-        <label for="email">Email</label>
-        <input type="email" id="email" required autocomplete="email" />
-        <label for="password">Password</label>
-        <input type="password" id="password" required autocomplete="current-password" />
-        <button type="submit" class="btn-primary" id="authSubmitBtn">Sign in</button>
-      </form>
-      <div class="toggle-row">
-        <span id="toggleLabel">Don't have an account?</span>
-        <button type="button" id="toggleModeBtn">Create one</button>
+    <div class="auth-wrap">
+      <div class="auth-mark">HR</div>
+      <div class="auth-card">
+        <h2 id="authTitle">Sign in</h2>
+        <p class="sub" id="authSub">Access your documents, timesheets and paystubs.</p>
+        <div id="authMsg"></div>
+        <form id="authForm">
+          <label for="email">Email</label>
+          <input type="email" id="email" required autocomplete="email" />
+          <label for="password">Password</label>
+          <input type="password" id="password" required autocomplete="current-password" />
+          <button type="submit" class="btn-primary" id="authSubmitBtn">Sign in</button>
+        </form>
+        <div class="toggle-row">
+          <span id="toggleLabel">Don't have an account?</span>
+          <button type="button" id="toggleModeBtn">Create one</button>
+        </div>
       </div>
     </div>
   </div>
@@ -206,7 +275,13 @@
   <!-- ===== App view ===== -->
   <div id="appView" class="hidden">
     <header class="top">
-      <h1>HR Intake Portal</h1>
+      <div class="brand">
+        <div class="brand-mark">HR</div>
+        <div>
+          <p class="eyebrow">Buzzflix</p>
+          <h1>HR Intake Portal</h1>
+        </div>
+      </div>
       <button id="signOutBtn">Sign out</button>
     </header>
 
@@ -226,6 +301,7 @@
         </div>
         <div id="documentsMsg"></div>
         <ul class="file-list" id="documentsList"></ul>
+        <p class="empty hidden" id="documentsEmptyStatic">No documents uploaded yet.</p>
       </section>
 
       <section class="panel">
@@ -444,7 +520,7 @@
 
       if (showDownload) {
         const status = document.createElement("span");
-        status.className = "status";
+        status.className = `status-badge status-${row.status}`;
         status.textContent = row.status;
         right.appendChild(status);
       } else {
