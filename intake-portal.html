@@ -1181,6 +1181,12 @@
       const right = document.createElement("span");
       right.className = "actions";
       if (!row.used) {
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "preview-link";
+        copyBtn.textContent = "Copy Link";
+        copyBtn.addEventListener("click", () => copyInviteMessage(row.email, copyBtn));
+        right.appendChild(copyBtn);
+
         const cancelBtn = document.createElement("button");
         cancelBtn.className = "remove-link";
         cancelBtn.textContent = "Cancel";
@@ -1191,6 +1197,24 @@
       li.appendChild(left);
       li.appendChild(right);
       listEl.appendChild(li);
+    }
+  }
+
+  const PORTAL_URL = "https://ethanheinze.github.io/intake-portal/";
+
+  async function copyInviteMessage(email, btn) {
+    const message =
+      `You've been invited to the Buzzflix HR Intake Portal.\n\n` +
+      `Create your account at ${PORTAL_URL} using this email address: ${email}\n\n` +
+      `Click "Create one" on the sign-in screen to get started.`;
+
+    try {
+      await navigator.clipboard.writeText(message);
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = original; }, 1800);
+    } catch (err) {
+      alert(message);
     }
   }
 
