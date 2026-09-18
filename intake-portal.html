@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HR Intake Portal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-soft: #5c5648;
+    --ink-faint: #9a927e;
+    --line: #ece4cf;
+    --surface: #ffffff;
+    --page: #fbf8f0;
+    --accent: #1a1a1a;
+    --accent-hover: #000000;
+    --accent-soft: #fdf0cd;
+    --accent-soft-hover: #fbe4a6;
+    --link: #b4550b;
+    --link-hover: #8f4108;
+    --brand-yellow: #ffd23f;
+    --error: #b3402f;
+    --error-soft: #fbebe8;
+    --ok: #1f7a4d;
+    --ok-soft: #e7f5ee;
+    --warn: #a8681b;
+    --warn-soft: #fbf1e2;
+    --info: #b4550b;
+    --info-soft: #fdf0cd;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20,24,28,0.04), 0 1px 12px rgba(20,24,28,0.05);
+  }
+  body::before {
+    content: "";
+    display: block;
+    height: 5px;
+    background: var(--brand-yellow);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  header.top h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header.top .eyebrow { font-size: 12px; color: var(--link); margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  #signOutBtn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 7px 14px;
+    border-radius: 7px;
+    transition: all 0.15s ease;
+  }
+  #signOutBtn:hover { color: var(--ink); border-color: var(--ink-faint); background: var(--surface); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .tab-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--ink-faint); font-size: 14px; font-weight: 600;
+    padding: 10px 4px; cursor: pointer; margin-right: 24px;
+    transition: color 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--ink-soft); }
+  .tab-btn.active { color: var(--link); border-bottom-color: var(--link); }
+
+  /* Auth card */
+  .auth-wrap { display: flex; flex-direction: column; align-items: center; margin-top: 72px; }
+  .auth-mark {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; margin-bottom: 20px;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 36px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .auth-card h2 { font-size: 18px; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  .auth-card p.sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 26px; }
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-soft); margin-bottom: 6px; }
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 17px;
+    background: var(--page);
+    color: var(--ink);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  input:focus { outline: none; border-color: var(--link); background: var(--surface); }
+  button { font-family: inherit; cursor: pointer; }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s ease;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toggle-row { text-align: center; margin-top: 18px; font-size: 13px; color: var(--ink-faint); }
+  .toggle-row button {
+    background: none; border: none; color: var(--link);
+    font-size: 13px; font-weight: 600; padding: 0; margin-left: 2px;
+  }
+  .toggle-row button:hover { text-decoration: underline; }
+  .msg { font-size: 13px; padding: 10px 13px; border-radius: 7px; margin-bottom: 17px; font-weight: 500; }
+  .msg.error { background: var(--error-soft); color: var(--error); }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+
+  /* Sections */
+  section.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 26px 28px;
+    margin-bottom: 20px;
+  }
+  section.panel h2 { font-size: 15.5px; margin: 0 0 4px; font-weight: 600; letter-spacing: -0.01em; }
+  section.panel p.desc { color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; }
+  .upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type="file"] {
+    flex: 1; min-width: 160px; font-size: 13px; color: var(--ink-soft);
+  }
+  select {
+    padding: 8px 11px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .btn-secondary {
+    background: var(--accent-soft);
+    color: var(--link);
+    border: none;
+    border-radius: 7px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+  }
+  .btn-secondary:hover { background: var(--accent-soft-hover); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  ul.file-list { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  ul.file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13.5px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  ul.file-list li .info { display: flex; flex-direction: column; gap: 3px; }
+  ul.file-list li .name { color: var(--ink); font-weight: 500; }
+  ul.file-list li .email { color: var(--ink-faint); font-size: 12px; }
+  ul.file-list li .actions { display: flex; align-items: center; gap: 12px; }
+  ul.file-list a {
+    color: var(--link); text-decoration: none; font-size: 13px; font-weight: 600;
+  }
+  ul.file-list a:hover { color: var(--link-hover); text-decoration: underline; }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    text-transform: capitalize;
+  }
+  .status-pending { background: var(--warn-soft); color: var(--warn); }
+  .status-approved { background: var(--ok-soft); color: var(--ok); }
+  .status-rejected { background: var(--error-soft); color: var(--error); }
+  .status-issued { background: var(--info-soft); color: var(--info); }
+
+  .empty {
+    color: var(--ink-faint);
+    font-size: 13px;
+    padding: 16px 0 0;
+    text-align: center;
+  }
+  .hidden { display: none !important; }
+
+  /* Toast notifications */
+  #toastContainer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    z-index: 1000;
+    max-width: 300px;
+  }
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--ok);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 13px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: toast-in 0.2s ease;
+  }
+  .toast.rejected { border-left-color: var(--error); }
+  .toast .toast-body { flex: 1; }
+  .toast .toast-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .toast .toast-title.approved { color: var(--ok); }
+  .toast .toast-title.rejected { color: var(--error); }
+  .toast .toast-msg { color: var(--ink-soft); font-size: 12.5px; }
+  .toast-close {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .toast-close:hover { color: var(--ink); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 520px) {
+    .shell { padding: 36px 16px 72px; }
+    section.panel { padding: 20px; }
+    .upload-row { flex-direction: column; align-items: stretch; }
+    .btn-secondary { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ===== Auth view ===== -->
+  <div id="authView">
+    <div class="auth-wrap">
+      <div class="auth-mark">HR</div>
+      <div class="auth-card">
+        <h2 id="authTitle">Sign in</h2>
+        <p class="sub" id="authSub">Access your documents, timesheets and paystubs.</p>
+        <div id="authMsg"></div>
+        <form id="authForm">
+          <label for="email">Email</label>
+          <input type="email" id="email" required autocomplete="email" />
+          <label for="password">Password</label>
+          <input type="password" id="password" required autocomplete="current-password" />
+          <button type="submit" class="btn-primary" id="authSubmitBtn">Sign in</button>
+        </form>
+        <div class="toggle-row">
+          <span id="toggleLabel">Don't have an account?</span>
+          <button type="button" id="toggleModeBtn">Create one</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== App view ===== -->
+  <div id="appView" class="hidden">
+    <header class="top">
+      <div class="brand">
+        <div class="brand-mark">HR</div>
+        <div>
+          <p class="eyebrow">Buzzflix</p>
+          <h1>HR Intake Portal</h1>
+        </div>
+      </div>
+      <button id="signOutBtn">Sign out</button>
+    </header>
+
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" id="tabPortalBtn">My Portal</button>
+      <button class="tab-btn hidden" id="tabAdminBtn">Admin Review</button>
+    </div>
+
+    <!-- Employee view -->
+    <div id="portalTab">
+      <section class="panel">
+        <h2>Documents</h2>
+        <p class="desc">Upload confidential documents for HR review.</p>
+        <div class="upload-row">
+          <input type="file" id="documentsFile" />
+          <button class="btn-secondary" data-bucket="documents" data-table="documents">Upload</button>
+        </div>
+        <div id="documentsMsg"></div>
+        <ul class="file-list" id="documentsList"></ul>
+        <p class="empty hidden" id="documentsEmptyStatic">No documents uploaded yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Timesheets</h2>
+        <p class="desc">Submit your timesheet for the current pay period.</p>
+        <div class="upload-row">
+          <input type="file" id="timesheetsFile" />
+          <button class="btn-secondary" data-bucket="timesheets" data-table="timesheets">Upload</button>
+        </div>
+        <div id="timesheetsMsg"></div>
+        <ul class="file-list" id="timesheetsList"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Paystubs</h2>
+        <p class="desc">Issued by payroll. View and download only.</p>
+        <ul class="file-list" id="paystubsList"></ul>
+        <p class="empty hidden" id="paystubsEmpty">No paystubs on file yet.</p>
+      </section>
+    </div>
+
+    <!-- Admin view -->
+    <div id="adminTab" class="hidden">
+      <section class="panel">
+        <h2>Documents — all submissions</h2>
+        <div id="adminDocumentsMsg"></div>
+        <ul class="file-list" id="adminDocumentsList"></ul>
+        <p class="empty hidden" id="adminDocumentsEmpty">No documents submitted yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Timesheets — all submissions</h2>
+        <div id="adminTimesheetsMsg"></div>
+        <ul class="file-list" id="adminTimesheetsList"></ul>
+        <p class="empty hidden" id="adminTimesheetsEmpty">No timesheets submitted yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Issue a paystub</h2>
+        <p class="desc">Select an employee and upload their paystub file.</p>
+        <div class="upload-row">
+          <select id="paystubEmployeeSelect"></select>
+          <input type="file" id="adminPaystubFile" />
+          <button class="btn-secondary" id="adminPaystubUploadBtn">Issue</button>
+        </div>
+        <div id="adminPaystubMsg"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Paystubs — all issued</h2>
+        <ul class="file-list" id="adminPaystubsList"></ul>
+        <p class="empty hidden" id="adminPaystubsEmpty">No paystubs issued yet.</p>
+      </section>
+    </div>
+  </div>
+
+</div>
+
+<div id="toastContainer"></div>
+
+<script>
+  // ---- Configuration ----
+  const SUPABASE_URL = "https://wywlcvnlzeylmaglfkod.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_lgGcPg15iVBslMSbCK_zZw_gZhoLbYI";
+  // -----------------------
+
+  const { createClient } = supabase;
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const authView = document.getElementById("authView");
+  const appView = document.getElementById("appView");
+  const authForm = document.getElementById("authForm");
+  const authTitle = document.getElementById("authTitle");
+  const authSub = document.getElementById("authSub");
+  const authSubmitBtn = document.getElementById("authSubmitBtn");
+  const authMsg = document.getElementById("authMsg");
+  const toggleModeBtn = document.getElementById("toggleModeBtn");
+  const toggleLabel = document.getElementById("toggleLabel");
+
+  let mode = "signin";
+  let isAdmin = false;
+  let profileMap = new Map();
+
+  toggleModeBtn.addEventListener("click", () => {
+    mode = mode === "signin" ? "signup" : "signin";
+    if (mode === "signup") {
+      authTitle.textContent = "Create account";
+      authSub.textContent = "Set up access to the intake portal.";
+      authSubmitBtn.textContent = "Create account";
+      toggleLabel.textContent = "Already have an account?";
+      toggleModeBtn.textContent = "Sign in";
+    } else {
+      authTitle.textContent = "Sign in";
+      authSub.textContent = "Access your documents, timesheets and paystubs.";
+      authSubmitBtn.textContent = "Sign in";
+      toggleLabel.textContent = "Don't have an account?";
+      toggleModeBtn.textContent = "Create one";
+    }
+    authMsg.innerHTML = "";
+  });
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    authSubmitBtn.disabled = true;
+    authMsg.innerHTML = "";
+
+    const { error } =
+      mode === "signup"
+        ? await client.auth.signUp({ email, password })
+        : await client.auth.signInWithPassword({ email, password });
+
+    authSubmitBtn.disabled = false;
+
+    if (error) {
+      authMsg.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    if (mode === "signup") {
+      authMsg.innerHTML = `<div class="msg ok">Account created. Check your email to confirm, then sign in.</div>`;
+      return;
+    }
+    await showApp();
+  });
+
+  document.getElementById("signOutBtn").addEventListener("click", async () => {
+    if (reviewChannel) {
+      client.removeChannel(reviewChannel);
+      reviewChannel = null;
+    }
+    await client.auth.signOut();
+    appView.classList.add("hidden");
+    authView.classList.remove("hidden");
+    authForm.reset();
+  });
+
+  // ---- Tabs ----
+  const tabPortalBtn = document.getElementById("tabPortalBtn");
+  const tabAdminBtn = document.getElementById("tabAdminBtn");
+  const portalTab = document.getElementById("portalTab");
+  const adminTab = document.getElementById("adminTab");
+
+  tabPortalBtn.addEventListener("click", () => {
+    tabPortalBtn.classList.add("active");
+    tabAdminBtn.classList.remove("active");
+    portalTab.classList.remove("hidden");
+    adminTab.classList.add("hidden");
+  });
+  tabAdminBtn.addEventListener("click", () => {
+    tabAdminBtn.classList.add("active");
+    tabPortalBtn.classList.remove("active");
+    adminTab.classList.remove("hidden");
+    portalTab.classList.add("hidden");
+  });
+
+  // ---- Employee upload handling ----
+  document.querySelectorAll("[data-bucket]").forEach((btn) => {
+    btn.addEventListener("click", () => handleUpload(btn.dataset.bucket, btn.dataset.table));
+  });
+
+  async function handleUpload(bucket, table) {
+    const fileInput = document.getElementById(`${bucket}File`);
+    const msgEl = document.getElementById(`${bucket}Msg`);
+    const file = fileInput.files[0];
+    if (!file) {
+      msgEl.innerHTML = `<div class="msg error">Choose a file first.</div>`;
+      return;
+    }
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+
+    const path = `${user.id}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await client.storage.from(bucket).upload(path, file);
+    if (uploadError) {
+      msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+      return;
+    }
+    const { error: insertError } = await client
+      .from(table)
+      .insert({ user_id: user.id, status: "pending", file_path: path });
+
+    if (insertError) {
+      msgEl.innerHTML = `<div class="msg error">File uploaded but record failed: ${insertError.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Uploaded ${file.name}.</div>`;
+    fileInput.value = "";
+    loadList(bucket, table, bucket !== "paystubs");
+  }
+
+  // ---- Employee listing (own records only) ----
+  async function loadList(bucket, table, showDownload) {
+    const listEl = document.getElementById(`${bucket}List`);
+    const emptyEl = document.getElementById(`${bucket}Empty`);
+    listEl.innerHTML = "";
+
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+
+    const { data: rows, error } = await client
+      .from(table)
+      .select("id, status, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      if (emptyEl) emptyEl.classList.remove("hidden");
+      return;
+    }
+    if (emptyEl) emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      if (showDownload) {
+        const status = document.createElement("span");
+        status.className = `status-badge status-${row.status}`;
+        status.textContent = row.status;
+        right.appendChild(status);
+      } else {
+        const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
+        const a = document.createElement("a");
+        a.href = signed ? signed.signedUrl : "#";
+        a.textContent = "Download";
+        a.target = "_blank";
+        right.appendChild(a);
+      }
+
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  // ---- Admin: profile map (user_id -> email) ----
+  async function loadProfileMap() {
+    const { data: rows } = await client.from("profiles").select("user_id, email");
+    profileMap = new Map((rows || []).map((r) => [r.user_id, r.email]));
+  }
+
+  function populateEmployeeSelect() {
+    const select = document.getElementById("paystubEmployeeSelect");
+    select.innerHTML = "";
+    for (const [userId, email] of profileMap.entries()) {
+      const opt = document.createElement("option");
+      opt.value = userId;
+      opt.textContent = email;
+      select.appendChild(opt);
+    }
+  }
+
+  // ---- Admin: review lists for documents/timesheets ----
+  async function loadAdminList(bucket, table) {
+    const listEl = document.getElementById(`admin${capitalize(bucket)}List`);
+    const emptyEl = document.getElementById(`admin${capitalize(bucket)}Empty`);
+    listEl.innerHTML = "";
+
+    const { data: rows, error } = await client
+      .from(table)
+      .select("id, user_id, status, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      if (emptyEl) emptyEl.classList.remove("hidden");
+      return;
+    }
+    if (emptyEl) emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+      const email = profileMap.get(row.user_id) || row.user_id;
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      const select = document.createElement("select");
+      ["pending", "approved", "rejected"].forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        if (s === row.status) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", () => updateStatus(table, row.id, select.value, bucket));
+
+      const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
+      const a = document.createElement("a");
+      a.href = signed ? signed.signedUrl : "#";
+      a.textContent = "Download";
+      a.target = "_blank";
+
+      right.appendChild(select);
+      right.appendChild(a);
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function updateStatus(table, id, newStatus, bucket) {
+    const msgEl = document.getElementById(`admin${capitalize(bucket)}Msg`);
+    const { error } = await client.from(table).update({ status: newStatus }).eq("id", id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">Update failed: ${error.message}</div>`;
+    } else {
+      msgEl.innerHTML = `<div class="msg ok">Status updated.</div>`;
+    }
+  }
+
+  // ---- Admin: issue paystub ----
+  document.getElementById("adminPaystubUploadBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("adminPaystubMsg");
+    const employeeId = document.getElementById("paystubEmployeeSelect").value;
+    const file = document.getElementById("adminPaystubFile").files[0];
+    if (!employeeId || !file) {
+      msgEl.innerHTML = `<div class="msg error">Select an employee and a file.</div>`;
+      return;
+    }
+    const path = `${employeeId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await client.storage.from("paystubs").upload(path, file);
+    if (uploadError) {
+      msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+      return;
+    }
+    const { error: insertError } = await client
+      .from("paystubs")
+      .insert({ user_id: employeeId, status: "issued", file_path: path });
+    if (insertError) {
+      msgEl.innerHTML = `<div class="msg error">File uploaded but record failed: ${insertError.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Paystub issued.</div>`;
+    document.getElementById("adminPaystubFile").value = "";
+    loadAdminPaystubs();
+  });
+
+  async function loadAdminPaystubs() {
+    const listEl = document.getElementById("adminPaystubsList");
+    const emptyEl = document.getElementById("adminPaystubsEmpty");
+    listEl.innerHTML = "";
+
+    const { data: rows, error } = await client
+      .from("paystubs")
+      .select("id, user_id, file_path, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error || !rows || rows.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const li = document.createElement("li");
+      const name = row.file_path.split("/").pop();
+      const email = profileMap.get(row.user_id) || row.user_id;
+
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>`;
+
+      const { data: signed } = await client.storage.from("paystubs").createSignedUrl(row.file_path, 60 * 5);
+      const a = document.createElement("a");
+      a.href = signed ? signed.signedUrl : "#";
+      a.textContent = "Download";
+      a.target = "_blank";
+
+      li.appendChild(left);
+      li.appendChild(a);
+      listEl.appendChild(li);
+    }
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ---- Toast notifications ----
+  function showToast(kind, label, fileName) {
+    // kind: "approved" or "rejected"
+    const container = document.getElementById("toastContainer");
+    const toast = document.createElement("div");
+    toast.className = `toast ${kind}`;
+
+    const body = document.createElement("div");
+    body.className = "toast-body";
+    const title = document.createElement("div");
+    title.className = `toast-title ${kind}`;
+    title.textContent = kind === "approved" ? "Approved" : "Rejected";
+    const msg = document.createElement("div");
+    msg.className = "toast-msg";
+    msg.textContent = `Your ${label} "${fileName}" was ${kind}.`;
+    body.appendChild(title);
+    body.appendChild(msg);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "toast-close";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => toast.remove());
+
+    toast.appendChild(body);
+    toast.appendChild(closeBtn);
+    container.appendChild(toast);
+    // No auto-dismiss — stays until the user closes it.
+  }
+
+  let reviewChannel = null;
+
+  function subscribeToReviewUpdates(userId) {
+    if (reviewChannel) {
+      client.removeChannel(reviewChannel);
+    }
+    reviewChannel = client
+      .channel(`review-updates-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "documents", filter: `user_id=eq.${userId}` },
+        (payload) => handleReviewUpdate(payload, "documents", "document")
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "timesheets", filter: `user_id=eq.${userId}` },
+        (payload) => handleReviewUpdate(payload, "timesheets", "timesheet")
+      )
+      .subscribe();
+  }
+
+  function handleReviewUpdate(payload, bucket, label) {
+    const oldStatus = payload.old ? payload.old.status : null;
+    const newStatus = payload.new.status;
+    if (newStatus === oldStatus) return;
+    if (newStatus !== "approved" && newStatus !== "rejected") return;
+
+    const fileName = payload.new.file_path.split("/").pop();
+    showToast(newStatus, label, fileName);
+
+    // Keep the employee's own list in sync too
+    loadList(bucket, bucket, true);
+  }
+
+  // ---- Session bootstrap ----
+  async function showApp() {
+    authView.classList.add("hidden");
+    appView.classList.remove("hidden");
+
+    const { data: { user } } = await client.auth.getUser();
+
+    const { data: roleRow } = await client
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    isAdmin = roleRow && roleRow.role === "admin";
+
+    if (isAdmin) {
+      tabAdminBtn.classList.remove("hidden");
+      await loadProfileMap();
+      populateEmployeeSelect();
+      loadAdminList("documents", "documents");
+      loadAdminList("timesheets", "timesheets");
+      loadAdminPaystubs();
+    }
+
+    loadList("documents", "documents", true);
+    loadList("timesheets", "timesheets", true);
+    loadList("paystubs", "paystubs", false);
+
+    subscribeToReviewUpdates(user.id);
+  }
+
+  client.auth.getSession().then(({ data: { session } }) => {
+    if (session) showApp();
+  });
+</script>
+
+</body>
+</html>
