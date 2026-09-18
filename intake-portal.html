@@ -684,12 +684,29 @@
       a.textContent = "Download";
       a.target = "_blank";
 
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "remove-link";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteAdminRecord(bucket, table, row.id, row.file_path));
+
       right.appendChild(select);
       right.appendChild(a);
+      right.appendChild(deleteBtn);
       li.appendChild(left);
       li.appendChild(right);
       listEl.appendChild(li);
     }
+  }
+
+  async function deleteAdminRecord(bucket, table, id, filePath) {
+    const msgEl = document.getElementById(`admin${capitalize(bucket)}Msg`);
+    await client.storage.from(bucket).remove([filePath]);
+    const { error } = await client.from(table).delete().eq("id", id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">Couldn't delete: ${error.message}</div>`;
+      return;
+    }
+    loadAdminList(bucket, table);
   }
 
   async function updateStatus(table, id, newStatus, bucket) {
@@ -760,10 +777,26 @@
       a.textContent = "Download";
       a.target = "_blank";
 
+      const right = document.createElement("span");
+      right.className = "actions";
+      right.appendChild(a);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "remove-link";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteAdminPaystub(row.id, row.file_path));
+      right.appendChild(deleteBtn);
+
       li.appendChild(left);
-      li.appendChild(a);
+      li.appendChild(right);
       listEl.appendChild(li);
     }
+  }
+
+  async function deleteAdminPaystub(id, filePath) {
+    await client.storage.from("paystubs").remove([filePath]);
+    const { error } = await client.from("paystubs").delete().eq("id", id);
+    if (!error) loadAdminPaystubs();
   }
 
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
