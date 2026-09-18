@@ -216,6 +216,18 @@
   }
   ul.file-list a:hover { color: var(--link-hover); text-decoration: underline; }
 
+  .remove-link {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .remove-link:hover { color: var(--error); }
+
   .status-badge {
     display: inline-block;
     font-size: 11.5px;
@@ -236,6 +248,51 @@
     text-align: center;
   }
   .hidden { display: none !important; }
+
+  /* Toast notifications */
+  #toastContainer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    z-index: 1000;
+    max-width: 300px;
+  }
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--ok);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 13px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: toast-in 0.2s ease;
+  }
+  .toast.rejected { border-left-color: var(--error); }
+  .toast .toast-body { flex: 1; }
+  .toast .toast-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .toast .toast-title.approved { color: var(--ok); }
+  .toast .toast-title.rejected { color: var(--error); }
+  .toast .toast-msg { color: var(--ink-soft); font-size: 12.5px; }
+  .toast-close {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .toast-close:hover { color: var(--ink); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   @media (max-width: 520px) {
     .shell { padding: 36px 16px 72px; }
@@ -360,6 +417,8 @@
 
 </div>
 
+<div id="toastContainer"></div>
+
 <script>
   // ---- Configuration ----
   const SUPABASE_URL = "https://wywlcvnlzeylmaglfkod.supabase.co";
@@ -427,6 +486,10 @@
   });
 
   document.getElementById("signOutBtn").addEventListener("click", async () => {
+    if (reviewChannel) {
+      client.removeChannel(reviewChannel);
+      reviewChannel = null;
+    }
     await client.auth.signOut();
     appView.classList.add("hidden");
     authView.classList.remove("hidden");
@@ -523,6 +586,16 @@
         status.className = `status-badge status-${row.status}`;
         status.textContent = row.status;
         right.appendChild(status);
+
+        if (row.status === "rejected") {
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "remove-link";
+          removeBtn.textContent = "Remove";
+          removeBtn.addEventListener("click", () =>
+            deleteSubmission(bucket, table, row.id, row.file_path)
+          );
+          right.appendChild(removeBtn);
+        }
       } else {
         const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
         const a = document.createElement("a");
@@ -536,6 +609,17 @@
       li.appendChild(right);
       listEl.appendChild(li);
     }
+  }
+
+  async function deleteSubmission(bucket, table, id, filePath) {
+    const msgEl = document.getElementById(`${bucket}Msg`);
+    await client.storage.from(bucket).remove([filePath]);
+    const { error } = await client.from(table).delete().eq("id", id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">Couldn't remove: ${error.message}</div>`;
+      return;
+    }
+    loadList(bucket, table, true);
   }
 
   // ---- Admin: profile map (user_id -> email) ----
@@ -600,12 +684,29 @@
       a.textContent = "Download";
       a.target = "_blank";
 
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "remove-link";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteAdminRecord(bucket, table, row.id, row.file_path));
+
       right.appendChild(select);
       right.appendChild(a);
+      right.appendChild(deleteBtn);
       li.appendChild(left);
       li.appendChild(right);
       listEl.appendChild(li);
     }
+  }
+
+  async function deleteAdminRecord(bucket, table, id, filePath) {
+    const msgEl = document.getElementById(`admin${capitalize(bucket)}Msg`);
+    await client.storage.from(bucket).remove([filePath]);
+    const { error } = await client.from(table).delete().eq("id", id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">Couldn't delete: ${error.message}</div>`;
+      return;
+    }
+    loadAdminList(bucket, table);
   }
 
   async function updateStatus(table, id, newStatus, bucket) {
@@ -676,13 +777,92 @@
       a.textContent = "Download";
       a.target = "_blank";
 
+      const right = document.createElement("span");
+      right.className = "actions";
+      right.appendChild(a);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "remove-link";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteAdminPaystub(row.id, row.file_path));
+      right.appendChild(deleteBtn);
+
       li.appendChild(left);
-      li.appendChild(a);
+      li.appendChild(right);
       listEl.appendChild(li);
     }
   }
 
+  async function deleteAdminPaystub(id, filePath) {
+    await client.storage.from("paystubs").remove([filePath]);
+    const { error } = await client.from("paystubs").delete().eq("id", id);
+    if (!error) loadAdminPaystubs();
+  }
+
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ---- Toast notifications ----
+  function showToast(kind, label, fileName) {
+    // kind: "approved" or "rejected"
+    const container = document.getElementById("toastContainer");
+    const toast = document.createElement("div");
+    toast.className = `toast ${kind}`;
+
+    const body = document.createElement("div");
+    body.className = "toast-body";
+    const title = document.createElement("div");
+    title.className = `toast-title ${kind}`;
+    title.textContent = kind === "approved" ? "Approved" : "Rejected";
+    const msg = document.createElement("div");
+    msg.className = "toast-msg";
+    msg.textContent = `Your ${label} "${fileName}" was ${kind}.`;
+    body.appendChild(title);
+    body.appendChild(msg);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "toast-close";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => toast.remove());
+
+    toast.appendChild(body);
+    toast.appendChild(closeBtn);
+    container.appendChild(toast);
+    // No auto-dismiss — stays until the user closes it.
+  }
+
+  let reviewChannel = null;
+
+  function subscribeToReviewUpdates(userId) {
+    if (reviewChannel) {
+      client.removeChannel(reviewChannel);
+    }
+    reviewChannel = client
+      .channel(`review-updates-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "documents", filter: `user_id=eq.${userId}` },
+        (payload) => handleReviewUpdate(payload, "documents", "document")
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "timesheets", filter: `user_id=eq.${userId}` },
+        (payload) => handleReviewUpdate(payload, "timesheets", "timesheet")
+      )
+      .subscribe();
+  }
+
+  function handleReviewUpdate(payload, bucket, label) {
+    const oldStatus = payload.old ? payload.old.status : null;
+    const newStatus = payload.new.status;
+    if (newStatus === oldStatus) return;
+    if (newStatus !== "approved" && newStatus !== "rejected") return;
+
+    const fileName = payload.new.file_path.split("/").pop();
+    showToast(newStatus, label, fileName);
+
+    // Keep the employee's own list in sync too
+    loadList(bucket, bucket, true);
+  }
 
   // ---- Session bootstrap ----
   async function showApp() {
@@ -711,6 +891,8 @@
     loadList("documents", "documents", true);
     loadList("timesheets", "timesheets", true);
     loadList("paystubs", "paystubs", false);
+
+    subscribeToReviewUpdates(user.id);
   }
 
   client.auth.getSession().then(({ data: { session } }) => {
