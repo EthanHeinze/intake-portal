@@ -1481,7 +1481,7 @@
 
     const { data: inserted, error } = await client
       .from("company_invites")
-      .insert(invitePayload)
+      .upsert({ ...invitePayload, used: false }, { onConflict: "email" })
       .select()
       .single();
 
