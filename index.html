@@ -633,6 +633,14 @@
       </section>
 
       <section class="panel">
+        <h2>Employees</h2>
+        <p class="desc">Everyone who has completed onboarding. Removing someone revokes their portal access.</p>
+        <div id="employeesMsg"></div>
+        <ul class="file-list" id="employeesList"></ul>
+        <p class="empty hidden" id="employeesEmpty">No one has onboarded yet.</p>
+      </section>
+
+      <section class="panel">
         <h2>Documents — all submissions</h2>
         <div id="adminDocumentsMsg"></div>
         <ul class="file-list" id="adminDocumentsList"></ul>
@@ -702,6 +710,7 @@
   let isAdmin = false;
   let profileMap = new Map();
   let currentCompany = null;
+  let currentUserId = null;
 
   // ---- Crew departments & roles (used by the invite form) ----
   const DEPARTMENTS = {
@@ -942,6 +951,103 @@
   async function loadProfileMap() {
     const { data: rows } = await client.from("profiles").select("user_id, email");
     profileMap = new Map((rows || []).map((r) => [r.user_id, r.email]));
+  }
+
+  // ---- Admin: employees (onboarded accounts) ----
+  // Deleting the underlying Supabase Auth account can only be done with
+  // the service role key, which must never live in this client-side file.
+  // "Remove access" below revokes portal access immediately (their role
+  // and profile rows are deleted, so RLS shuts them out); their document/
+  // timesheet/paystub records are left in place for your own records.
+  // When you're ready to also delete the actual auth account, replace the
+  // body of this function with a call to a Supabase Edge Function that
+  // runs supabase.auth.admin.deleteUser(userId) with the service role
+  // key, e.g.:
+  //
+  //   await client.functions.invoke("delete-user", { body: { userId } });
+  //
+  async function deleteAuthAccount(userId) {
+    return { deleted: false };
+  }
+
+  async function loadEmployees() {
+    const listEl = document.getElementById("employeesList");
+    const emptyEl = document.getElementById("employeesEmpty");
+    listEl.innerHTML = "";
+
+    const [{ data: profiles }, { data: roles }, { data: invites }] = await Promise.all([
+      client.from("profiles").select("user_id, email"),
+      client.from("user_roles").select("user_id, role"),
+      client.from("company_invites").select("email, crew_role, department, start_date, end_date, kit_fee_enabled, kit_fee_rate").eq("used", true),
+    ]);
+
+    if (!profiles || profiles.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    const roleMap = new Map((roles || []).map((r) => [r.user_id, r.role]));
+    const inviteMap = new Map((invites || []).map((i) => [i.email, i]));
+
+    for (const p of profiles) {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+
+      const accessRole = roleMap.get(p.user_id) || "employee";
+      const invite = inviteMap.get(p.email);
+      let subtitle = accessRole;
+      if (invite) {
+        const kitBit = invite.kit_fee_enabled ? ` · <span class="kit-tag">$${Number(invite.kit_fee_rate || 0).toFixed(2)}/day kit</span>` : "";
+        const dates = invite.start_date ? ` · ${invite.start_date}${invite.end_date ? " – " + invite.end_date : ""}` : "";
+        subtitle = `${invite.crew_role || accessRole}${invite.department ? " (" + invite.department + ")" : ""}${dates}${kitBit}`;
+      }
+
+      left.innerHTML = `<span class="name">${p.email}</span><span class="email">${subtitle}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      if (p.user_id === currentUserId) {
+        const tag = document.createElement("span");
+        tag.className = "status-badge status-approved";
+        tag.textContent = "you";
+        right.appendChild(tag);
+      } else {
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-link";
+        removeBtn.textContent = "Remove access";
+        removeBtn.addEventListener("click", () => removeEmployee(p.user_id, p.email));
+        right.appendChild(removeBtn);
+      }
+
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function removeEmployee(userId, email) {
+    const msgEl = document.getElementById("employeesMsg");
+    if (!window.confirm(`Remove ${email}'s portal access? Their submitted documents, timesheets and paystubs are kept on file, but they'll no longer be able to sign in and use the portal.`)) {
+      return;
+    }
+
+    const { error: roleError } = await client.from("user_roles").delete().eq("user_id", userId);
+    const { error: profileError } = await client.from("profiles").delete().eq("user_id", userId);
+
+    if (roleError || profileError) {
+      msgEl.innerHTML = `<div class="msg error">${(roleError || profileError).message}</div>`;
+      return;
+    }
+
+    // Best-effort — currently a no-op until deleteAuthAccount is wired up.
+    await deleteAuthAccount(userId).catch(() => ({ deleted: false }));
+
+    msgEl.innerHTML = `<div class="msg ok">${email}'s access has been removed.</div>`;
+    loadProfileMap().then(populateEmployeeSelect);
+    loadEmployees();
   }
 
   function populateEmployeeSelect() {
@@ -1493,6 +1599,7 @@
     appView.classList.remove("hidden");
 
     const { data: { user } } = await client.auth.getUser();
+    currentUserId = user.id;
 
     const { data: roleRow } = await client
       .from("user_roles")
@@ -1510,6 +1617,7 @@
       loadAdminList("timesheets", "timesheets");
       loadAdminPaystubs();
       loadPendingInvites();
+      loadEmployees();
     }
 
     await loadCompanyBranding();
