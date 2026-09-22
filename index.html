@@ -359,6 +359,70 @@
 
   .color-row { display: flex; gap: 24px; margin-bottom: 4px; }
   .color-row > div { flex: 1; }
+  .invite-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 20px;
+  }
+  @media (max-width: 560px) {
+    .invite-grid { grid-template-columns: 1fr; }
+  }
+  .kit-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 4px 0 17px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 0;
+    cursor: pointer;
+  }
+  .checkbox-label input[type="checkbox"] {
+    width: 16px; height: 16px; margin: 0; accent-color: var(--ok);
+  }
+  #inviteKitRateWrap { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+  #inviteKitRateWrap label { margin: 0; white-space: nowrap; }
+  #inviteKitRateWrap input { margin: 0; width: 120px; }
+  .kit-tag {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+    background: var(--ok-soft); color: var(--ok); white-space: nowrap;
+  }
+  .kit-tag.off { background: var(--page); color: var(--ink-faint); border: 1px solid var(--line); }
+
+  .doc-request-block {
+    margin: 4px 0 17px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+  .block-label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-soft); margin-bottom: 6px; }
+  .doc-request-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+  }
+  @media (max-width: 560px) {
+    .doc-request-grid { grid-template-columns: 1fr; }
+  }
+  .doc-request-grid .checkbox-label { font-weight: 400; }
+  .doc-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--info-soft);
+    color: var(--info);
+    white-space: nowrap;
+    margin: 2px 4px 0 0;
+  }
   input[type="color"] {
     width: 100%; height: 38px; padding: 3px;
     border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
@@ -491,19 +555,89 @@
       </section>
 
       <section class="panel">
-        <h2>Invite an employee</h2>
-        <p class="desc">They'll only be able to sign up once invited.</p>
-        <div class="upload-row">
-          <input type="email" id="inviteEmailInput" placeholder="employee@company.com" />
-          <select id="inviteRoleSelect">
-            <option value="employee" selected>Employee</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button class="btn-secondary" id="sendInviteBtn">Send Invite</button>
+        <h2>Invite crew</h2>
+        <p class="desc">They'll only be able to sign up once invited. Add production details so the invite carries everything they need.</p>
+
+        <div class="invite-grid">
+          <div>
+            <label for="inviteNameInput">Full name</label>
+            <input type="text" id="inviteNameInput" placeholder="Jordan Lee" />
+          </div>
+          <div>
+            <label for="inviteEmailInput">Email</label>
+            <input type="email" id="inviteEmailInput" placeholder="employee@company.com" />
+          </div>
+          <div>
+            <label for="invitePhoneInput">Phone</label>
+            <input type="tel" id="invitePhoneInput" placeholder="(555) 555-5555" />
+          </div>
+          <div>
+            <label for="inviteAccessSelect">Portal access</label>
+            <select id="inviteAccessSelect">
+              <option value="employee" selected>Employee</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label for="inviteDeptSelect">Department</label>
+            <select id="inviteDeptSelect"></select>
+          </div>
+          <div>
+            <label for="inviteCrewRoleSelect">Crew role</label>
+            <select id="inviteCrewRoleSelect"></select>
+          </div>
+          <div>
+            <label for="inviteStartInput">Start date</label>
+            <input type="date" id="inviteStartInput" />
+          </div>
+          <div>
+            <label for="inviteEndInput">End date</label>
+            <input type="date" id="inviteEndInput" />
+          </div>
         </div>
+
+        <div class="kit-toggle-row">
+          <label class="checkbox-label" for="inviteKitToggle">
+            <input type="checkbox" id="inviteKitToggle" />
+            Crew member supplies own kit
+          </label>
+          <div id="inviteKitRateWrap" class="hidden">
+            <label for="inviteKitRateInput">Kit fee (per day)</label>
+            <input type="number" id="inviteKitRateInput" min="0" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+
+        <div class="doc-request-block">
+          <label class="block-label">Documents &amp; certifications to request</label>
+          <p class="desc" style="margin-bottom:10px;">Checked items show up on their portal as outstanding requests, in addition to the general Documents upload.</p>
+          <div class="doc-request-grid" id="docRequestGrid">
+            <label class="checkbox-label"><input type="checkbox" value="Government-issued ID" /> Government-issued ID</label>
+            <label class="checkbox-label"><input type="checkbox" value="Void cheque / direct deposit form" /> Void cheque / direct deposit form</label>
+            <label class="checkbox-label"><input type="checkbox" value="SIN documentation" /> SIN documentation</label>
+            <label class="checkbox-label"><input type="checkbox" value="Work permit / visa" /> Work permit / visa</label>
+            <label class="checkbox-label"><input type="checkbox" value="WCB clearance" /> WCB clearance</label>
+            <label class="checkbox-label"><input type="checkbox" value="OFTTC declaration of residency" /> OFTTC declaration of residency</label>
+            <label class="checkbox-label"><input type="checkbox" value="Union membership card" /> Union membership card</label>
+            <label class="checkbox-label"><input type="checkbox" value="First aid / CPR certification" /> First aid / CPR certification</label>
+            <label class="checkbox-label"><input type="checkbox" value="Stunt certification" /> Stunt certification</label>
+            <label class="checkbox-label"><input type="checkbox" value="Driver's license / abstract" /> Driver's license / abstract</label>
+          </div>
+          <label for="inviteDocsOtherInput" style="margin-top:12px;">Other requests</label>
+          <input type="text" id="inviteDocsOtherInput" placeholder="Comma-separated, e.g. Equipment insurance proof, Portfolio" />
+        </div>
+
+        <button class="btn-secondary" id="sendInviteBtn">Send Invite</button>
         <div id="inviteMsg"></div>
         <ul class="file-list" id="pendingInvitesList"></ul>
         <p class="empty hidden" id="pendingInvitesEmpty">No pending invites.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Employees</h2>
+        <p class="desc">Everyone who has completed onboarding. Removing someone revokes their portal access.</p>
+        <div id="employeesMsg"></div>
+        <ul class="file-list" id="employeesList"></ul>
+        <p class="empty hidden" id="employeesEmpty">No one has onboarded yet.</p>
       </section>
 
       <section class="panel">
@@ -576,6 +710,62 @@
   let isAdmin = false;
   let profileMap = new Map();
   let currentCompany = null;
+  let currentUserId = null;
+
+  // ---- Crew departments & roles (used by the invite form) ----
+  const DEPARTMENTS = {
+    "Production": ["Executive Producer", "Producer", "Line Producer", "Production Manager", "Production Coordinator", "Production Secretary", "Production Assistant", "Script Supervisor"],
+    "Direction": ["Director", "1st Assistant Director", "2nd Assistant Director", "2nd 2nd Assistant Director"],
+    "Camera": ["Director of Photography", "Camera Operator", "1st Assistant Camera (Focus Puller)", "2nd Assistant Camera (Clapper Loader)", "DIT (Digital Imaging Technician)", "Steadicam Operator", "Drone Operator"],
+    "Grip & Electric": ["Gaffer", "Best Boy Electric", "Electrician", "Key Grip", "Best Boy Grip", "Grip", "Dolly Grip"],
+    "Sound": ["Production Sound Mixer", "Boom Operator", "Sound Utility"],
+    "Art Department": ["Production Designer", "Art Director", "Set Decorator", "Set Dresser", "Props Master", "Props Assistant", "Construction Coordinator", "Scenic Painter"],
+    "Costume & Wardrobe": ["Costume Designer", "Costume Supervisor", "Wardrobe Stylist", "Set Costumer"],
+    "Hair & Makeup": ["Key Makeup Artist", "Makeup Artist", "SFX Makeup Artist", "Key Hair Stylist", "Hair Stylist"],
+    "Locations": ["Location Manager", "Assistant Location Manager", "Location Scout"],
+    "Transportation": ["Transportation Coordinator", "Driver", "Picture Car Coordinator"],
+    "Catering & Craft Service": ["Caterer", "Craft Service"],
+    "Post-Production": ["Editor", "Assistant Editor", "VFX Supervisor", "Colorist", "Sound Editor", "Composer"],
+    "Talent": ["Actor", "Stunt Coordinator", "Stunt Performer", "Background Performer"]
+  };
+
+  function populateInviteDeptAndRole() {
+    const deptSel = document.getElementById("inviteDeptSelect");
+    const roleSel = document.getElementById("inviteCrewRoleSelect");
+    if (!deptSel || !roleSel) return;
+
+    if (!deptSel.dataset.filled) {
+      Object.keys(DEPARTMENTS).forEach((dept) => {
+        const opt = document.createElement("option");
+        opt.value = dept;
+        opt.textContent = dept;
+        deptSel.appendChild(opt);
+      });
+      deptSel.dataset.filled = "1";
+      deptSel.addEventListener("change", fillCrewRoleOptions);
+    }
+    fillCrewRoleOptions();
+  }
+
+  function fillCrewRoleOptions() {
+    const deptSel = document.getElementById("inviteDeptSelect");
+    const roleSel = document.getElementById("inviteCrewRoleSelect");
+    roleSel.innerHTML = "";
+    (DEPARTMENTS[deptSel.value] || []).forEach((role) => {
+      const opt = document.createElement("option");
+      opt.value = role;
+      opt.textContent = role;
+      roleSel.appendChild(opt);
+    });
+  }
+  populateInviteDeptAndRole();
+
+  const inviteKitToggle = document.getElementById("inviteKitToggle");
+  const inviteKitRateWrap = document.getElementById("inviteKitRateWrap");
+  inviteKitToggle.addEventListener("change", () => {
+    inviteKitRateWrap.classList.toggle("hidden", !inviteKitToggle.checked);
+    if (!inviteKitToggle.checked) document.getElementById("inviteKitRateInput").value = "";
+  });
 
   toggleModeBtn.addEventListener("click", () => {
     mode = mode === "signin" ? "signup" : "signin";
@@ -650,6 +840,53 @@
     portalTab.classList.add("hidden");
   });
 
+  // ---- Blank-file guard (documents & timesheets) ----
+  // Two checks: (1) reject files that are empty or implausibly tiny to
+  // contain real content, and (2) for photos/scans, sample the image on
+  // a canvas and flag ones that are almost entirely a single light color
+  // (i.e. a blank sheet of paper). This is a heuristic, not perfect —
+  // very light handwriting or faint print could still slip through, and
+  // it only runs on image files (not PDFs).
+  function isImageFile(file) {
+    return !!(file.type && file.type.startsWith("image/"));
+  }
+
+  function checkLikelyBlankImage(file) {
+    return new Promise((resolve) => {
+      if (!isImageFile(file)) { resolve(false); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          const size = 120;
+          const canvas = document.createElement("canvas");
+          canvas.width = size; canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, size, size);
+          const { data } = ctx.getImageData(0, 0, size, size);
+          let sum = 0, sumSq = 0, n = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            sum += lum; sumSq += lum * lum; n++;
+          }
+          const mean = sum / n;
+          const variance = Math.max(sumSq / n - mean * mean, 0);
+          const stdDev = Math.sqrt(variance);
+          URL.revokeObjectURL(url);
+          // Mostly-white (mean) AND almost no variation (stdDev) reads as blank paper.
+          resolve(mean > 235 && stdDev < 10);
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          resolve(false); // fail open — never block on a canvas error
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+      img.src = url;
+    });
+  }
+
+  const MIN_UPLOAD_BYTES = 200; // anything smaller can't realistically hold real content
+
   // ---- Employee upload handling ----
   document.querySelectorAll("[data-bucket]").forEach((btn) => {
     btn.addEventListener("click", () => handleUpload(btn.dataset.bucket, btn.dataset.table));
@@ -659,10 +896,25 @@
     const fileInput = document.getElementById(`${bucket}File`);
     const msgEl = document.getElementById(`${bucket}Msg`);
     const file = fileInput.files[0];
+    const kind = bucket === "timesheets" ? "timesheet" : "document";
+
     if (!file) {
       msgEl.innerHTML = `<div class="msg error">Choose a file first.</div>`;
       return;
     }
+    if (file.size < MIN_UPLOAD_BYTES) {
+      msgEl.innerHTML = `<div class="msg error">That file is empty or too small to be a real ${kind} — please check it and try again.</div>`;
+      return;
+    }
+
+    msgEl.innerHTML = `<div class="msg">Checking file…</div>`;
+    const likelyBlank = await checkLikelyBlankImage(file);
+    if (likelyBlank) {
+      msgEl.innerHTML = `<div class="msg error">This looks like a blank page. Please upload a completed ${kind} — if this is a mistake, try a clearer photo or scan.</div>`;
+      fileInput.value = "";
+      return;
+    }
+
     const { data: { user } } = await client.auth.getUser();
     if (!user) return;
 
@@ -761,6 +1013,103 @@
   async function loadProfileMap() {
     const { data: rows } = await client.from("profiles").select("user_id, email");
     profileMap = new Map((rows || []).map((r) => [r.user_id, r.email]));
+  }
+
+  // ---- Admin: employees (onboarded accounts) ----
+  // Deleting the underlying Supabase Auth account can only be done with
+  // the service role key, which must never live in this client-side file.
+  // "Remove access" below revokes portal access immediately (their role
+  // and profile rows are deleted, so RLS shuts them out); their document/
+  // timesheet/paystub records are left in place for your own records.
+  // When you're ready to also delete the actual auth account, replace the
+  // body of this function with a call to a Supabase Edge Function that
+  // runs supabase.auth.admin.deleteUser(userId) with the service role
+  // key, e.g.:
+  //
+  //   await client.functions.invoke("delete-user", { body: { userId } });
+  //
+  async function deleteAuthAccount(userId) {
+    return { deleted: false };
+  }
+
+  async function loadEmployees() {
+    const listEl = document.getElementById("employeesList");
+    const emptyEl = document.getElementById("employeesEmpty");
+    listEl.innerHTML = "";
+
+    const [{ data: profiles }, { data: roles }, { data: invites }] = await Promise.all([
+      client.from("profiles").select("user_id, email"),
+      client.from("user_roles").select("user_id, role"),
+      client.from("company_invites").select("email, crew_role, department, start_date, end_date, kit_fee_enabled, kit_fee_rate").eq("used", true),
+    ]);
+
+    if (!profiles || profiles.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    const roleMap = new Map((roles || []).map((r) => [r.user_id, r.role]));
+    const inviteMap = new Map((invites || []).map((i) => [i.email, i]));
+
+    for (const p of profiles) {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+
+      const accessRole = roleMap.get(p.user_id) || "employee";
+      const invite = inviteMap.get(p.email);
+      let subtitle = accessRole;
+      if (invite) {
+        const kitBit = invite.kit_fee_enabled ? ` · <span class="kit-tag">$${Number(invite.kit_fee_rate || 0).toFixed(2)}/day kit</span>` : "";
+        const dates = invite.start_date ? ` · ${invite.start_date}${invite.end_date ? " – " + invite.end_date : ""}` : "";
+        subtitle = `${invite.crew_role || accessRole}${invite.department ? " (" + invite.department + ")" : ""}${dates}${kitBit}`;
+      }
+
+      left.innerHTML = `<span class="name">${p.email}</span><span class="email">${subtitle}</span>`;
+
+      const right = document.createElement("span");
+      right.className = "actions";
+
+      if (p.user_id === currentUserId) {
+        const tag = document.createElement("span");
+        tag.className = "status-badge status-approved";
+        tag.textContent = "you";
+        right.appendChild(tag);
+      } else {
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-link";
+        removeBtn.textContent = "Remove access";
+        removeBtn.addEventListener("click", () => removeEmployee(p.user_id, p.email));
+        right.appendChild(removeBtn);
+      }
+
+      li.appendChild(left);
+      li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function removeEmployee(userId, email) {
+    const msgEl = document.getElementById("employeesMsg");
+    if (!window.confirm(`Remove ${email}'s portal access? Their submitted documents, timesheets and paystubs are kept on file, but they'll no longer be able to sign in and use the portal.`)) {
+      return;
+    }
+
+    const { error: roleError } = await client.from("user_roles").delete().eq("user_id", userId);
+    const { error: profileError } = await client.from("profiles").delete().eq("user_id", userId);
+
+    if (roleError || profileError) {
+      msgEl.innerHTML = `<div class="msg error">${(roleError || profileError).message}</div>`;
+      return;
+    }
+
+    // Best-effort — currently a no-op until deleteAuthAccount is wired up.
+    await deleteAuthAccount(userId).catch(() => ({ deleted: false }));
+
+    msgEl.innerHTML = `<div class="msg ok">${email}'s access has been removed.</div>`;
+    loadProfileMap().then(populateEmployeeSelect);
+    loadEmployees();
   }
 
   function populateEmployeeSelect() {
@@ -1138,21 +1487,85 @@
     loadCompanyBranding();
   });
 
+  // ---- Email automation hook ----
+  // Not wired up yet — invites currently go out via the "Copy Link" /
+  // manual-share flow below. When you're ready to automate sending,
+  // replace the body of this function with a call to your email
+  // provider or a Supabase Edge Function, e.g.:
+  //
+  //   const { error } = await client.functions.invoke("send-invite-email", {
+  //     body: invite,
+  //   });
+  //   return { sent: !error };
+  //
+  // `invite` is exactly the row that was just inserted into
+  // company_invites (see the shape built in sendInviteBtn below), so no
+  // other code needs to change — this is the only function to fill in.
+  async function dispatchInviteEmail(invite) {
+    return { sent: false };
+  }
+
   document.getElementById("sendInviteBtn").addEventListener("click", async () => {
     const msgEl = document.getElementById("inviteMsg");
+    const full_name = document.getElementById("inviteNameInput").value.trim();
     const email = document.getElementById("inviteEmailInput").value.trim();
-    const role = document.getElementById("inviteRoleSelect").value;
-    if (!email) {
-      msgEl.innerHTML = `<div class="msg error">Enter an email first.</div>`;
+    const phone = document.getElementById("invitePhoneInput").value.trim();
+    const role = document.getElementById("inviteAccessSelect").value;
+    const department = document.getElementById("inviteDeptSelect").value;
+    const crew_role = document.getElementById("inviteCrewRoleSelect").value;
+    const start_date = document.getElementById("inviteStartInput").value;
+    const end_date = document.getElementById("inviteEndInput").value;
+    const kit_fee_enabled = document.getElementById("inviteKitToggle").checked;
+    const kit_fee_rate = kit_fee_enabled ? Number(document.getElementById("inviteKitRateInput").value || 0) : null;
+
+    const checkedDocs = Array.from(
+      document.querySelectorAll("#docRequestGrid input[type=checkbox]:checked")
+    ).map((cb) => cb.value);
+    const otherDocs = document.getElementById("inviteDocsOtherInput").value
+      .split(",").map((s) => s.trim()).filter(Boolean);
+    const requested_documents = [...checkedDocs, ...otherDocs];
+
+    if (!full_name || !email || !phone || !department || !crew_role || !start_date || !end_date) {
+      msgEl.innerHTML = `<div class="msg error">Fill in every field before sending this invite.</div>`;
       return;
     }
-    const { error } = await client.from("company_invites").insert({ company_id: currentCompany.id, email, role });
+    if (end_date < start_date) {
+      msgEl.innerHTML = `<div class="msg error">End date is before the start date.</div>`;
+      return;
+    }
+
+    const invitePayload = {
+      company_id: currentCompany.id,
+      email, role, full_name, phone, department, crew_role,
+      start_date, end_date, kit_fee_enabled, kit_fee_rate,
+      requested_documents,
+    };
+
+    const { data: inserted, error } = await client
+      .from("company_invites")
+      .upsert({ ...invitePayload, used: false }, { onConflict: "email" })
+      .select()
+      .single();
+
     if (error) {
       msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
       return;
     }
-    msgEl.innerHTML = `<div class="msg ok">Invite created for ${email}.</div>`;
-    document.getElementById("inviteEmailInput").value = "";
+
+    // Best-effort — currently a no-op until dispatchInviteEmail is wired up.
+    const dispatch = await dispatchInviteEmail(inserted || invitePayload).catch(() => ({ sent: false }));
+
+    msgEl.innerHTML = dispatch.sent
+      ? `<div class="msg ok">Invite emailed to ${email}.</div>`
+      : `<div class="msg ok">Invite created for ${email}. Use "Copy Invite" below to send it manually.</div>`;
+
+    ["inviteNameInput", "inviteEmailInput", "invitePhoneInput", "inviteStartInput", "inviteEndInput", "inviteKitRateInput", "inviteDocsOtherInput"]
+      .forEach((id) => { document.getElementById(id).value = ""; });
+    inviteKitToggle.checked = false;
+    inviteKitRateWrap.classList.add("hidden");
+    document.querySelectorAll("#docRequestGrid input[type=checkbox]:checked")
+      .forEach((cb) => { cb.checked = false; });
+
     loadPendingInvites();
   });
 
@@ -1163,7 +1576,7 @@
 
     const { data: rows, error } = await client
       .from("company_invites")
-      .select("id, email, role, used, created_at")
+      .select("id, email, role, full_name, phone, department, crew_role, start_date, end_date, kit_fee_enabled, kit_fee_rate, requested_documents, used, created_at")
       .order("created_at", { ascending: false });
 
     if (error || !rows || rows.length === 0) {
@@ -1176,15 +1589,27 @@
       const li = document.createElement("li");
       const left = document.createElement("span");
       left.className = "info";
-      left.innerHTML = `<span class="name">${row.email}</span><span class="email">${row.role} · ${row.used ? "joined" : "pending"}</span>`;
+
+      const kitBit = row.kit_fee_enabled
+        ? ` · <span class="kit-tag">$${Number(row.kit_fee_rate || 0).toFixed(2)}/day kit</span>`
+        : "";
+      const dates = row.start_date
+        ? ` · ${row.start_date}${row.end_date ? " – " + row.end_date : ""}`
+        : "";
+      const subtitle = `${row.crew_role || row.role}${row.department ? " (" + row.department + ")" : ""}${dates} · ${row.used ? "joined" : "pending"}${kitBit}`;
+      const docsBit = (row.requested_documents && row.requested_documents.length)
+        ? `<span style="display:block;margin-top:4px;">${row.requested_documents.map((d) => `<span class="doc-tag">${d}</span>`).join("")}</span>`
+        : "";
+
+      left.innerHTML = `<span class="name">${row.full_name || row.email}</span><span class="email">${row.email}${row.phone ? " · " + row.phone : ""}</span><span class="email">${subtitle}</span>${docsBit}`;
 
       const right = document.createElement("span");
       right.className = "actions";
       if (!row.used) {
         const copyBtn = document.createElement("button");
         copyBtn.className = "preview-link";
-        copyBtn.textContent = "Copy Link";
-        copyBtn.addEventListener("click", () => copyInviteMessage(row.email, copyBtn));
+        copyBtn.textContent = "Copy Invite";
+        copyBtn.addEventListener("click", () => copyInviteMessage(row, copyBtn));
         right.appendChild(copyBtn);
 
         const cancelBtn = document.createElement("button");
@@ -1202,10 +1627,17 @@
 
   const PORTAL_URL = "https://ethanheinze.github.io/intake-portal/";
 
-  async function copyInviteMessage(email, btn) {
+  async function copyInviteMessage(row, btn) {
+    const kitLine = row.kit_fee_enabled ? `Kit fee: $${Number(row.kit_fee_rate || 0).toFixed(2)}/day\n` : "";
+    const docsLine = (row.requested_documents && row.requested_documents.length)
+      ? `\nPlease upload the following before you start:\n` + row.requested_documents.map((d) => `- ${d}`).join("\n") + `\n`
+      : "";
     const message =
-      `You've been invited to the Buzzflix HR Intake Portal.\n\n` +
-      `Create your account at ${PORTAL_URL} using this email address: ${email}\n\n` +
+      `Hi ${row.full_name || ""},\n\n` +
+      `You've been invited to the Buzzflix HR Intake Portal as ${row.crew_role} (${row.department}).\n\n` +
+      `Dates: ${row.start_date} – ${row.end_date}\n` +
+      kitLine + docsLine + `\n` +
+      `Create your account at ${PORTAL_URL} using this email address: ${row.email}\n\n` +
       `Click "Create one" on the sign-in screen to get started.`;
 
     try {
@@ -1229,6 +1661,7 @@
     appView.classList.remove("hidden");
 
     const { data: { user } } = await client.auth.getUser();
+    currentUserId = user.id;
 
     const { data: roleRow } = await client
       .from("user_roles")
@@ -1246,6 +1679,7 @@
       loadAdminList("timesheets", "timesheets");
       loadAdminPaystubs();
       loadPendingInvites();
+      loadEmployees();
     }
 
     await loadCompanyBranding();
