@@ -1353,7 +1353,22 @@
       const { data, error } = await client.functions.invoke("delete-user", {
         body: { userId },
       });
-      if (error) return { deleted: false, error: error.message };
+      if (error) {
+        // client.functions.invoke() only gives a generic message by default
+        // ("Edge Function returned a non-2xx status code") — the function's
+        // actual JSON error body is on error.context, so pull the real
+        // reason out of there when it's available.
+        let detail = error.message;
+        if (error.context && typeof error.context.json === "function") {
+          try {
+            const body = await error.context.json();
+            if (body && body.error) detail = body.error;
+          } catch (parseErr) {
+            // response wasn't JSON — stick with the generic message
+          }
+        }
+        return { deleted: false, error: detail };
+      }
       if (data && data.error) return { deleted: false, error: data.error };
       return { deleted: true };
     } catch (e) {
@@ -1513,25 +1528,16 @@
       return;
     }
 
-    // Delete the actual auth account FIRST, while their profile/role rows
-    // still exist — the Edge Function uses those to confirm the caller is
-    // an admin in the SAME company as the person being removed. If this
-    // fails, stop here and leave everything untouched rather than deleting
-    // local records for an account that's still fully able to sign in.
+    // The Edge Function handles everything: it verifies you're an admin
+    // in the same company, deletes their profile/role rows (so nothing
+    // blocks the account deletion), then deletes the auth account itself.
     const dispatch = await deleteAuthAccount(userId);
     if (!dispatch.deleted) {
       msgEl.innerHTML = `<div class="msg error">Couldn't delete the account${dispatch.error ? ": " + dispatch.error : ""}. Nothing was changed.</div>`;
       return;
     }
 
-    const { error: roleError } = await client.from("user_roles").delete().eq("user_id", userId);
-    const { error: profileError } = await client.from("profiles").delete().eq("user_id", userId);
-
-    if (roleError || profileError) {
-      msgEl.innerHTML = `<div class="msg error">Account deleted, but local cleanup hit an issue: ${(roleError || profileError).message}</div>`;
-    } else {
-      msgEl.innerHTML = `<div class="msg ok">${email}'s account has been fully deleted.</div>`;
-    }
+    msgEl.innerHTML = `<div class="msg ok">${email}'s account has been fully deleted.</div>`;
     loadProfileMap().then(populateEmployeeSelect);
     loadEmployees();
   }
