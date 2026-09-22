@@ -1343,20 +1343,22 @@
   }
 
   // ---- Admin: employees (onboarded accounts) ----
-  // Deleting the underlying Supabase Auth account can only be done with
-  // the service role key, which must never live in this client-side file.
-  // "Remove access" below revokes portal access immediately (their role
-  // and profile rows are deleted, so RLS shuts them out); their document/
-  // timesheet/paystub records are left in place for your own records.
-  // When you're ready to also delete the actual auth account, replace the
-  // body of this function with a call to a Supabase Edge Function that
-  // runs supabase.auth.admin.deleteUser(userId) with the service role
-  // key, e.g.:
-  //
-  //   await client.functions.invoke("delete-user", { body: { userId } });
-  //
+  // Fully deletes the person's Supabase Auth account via a server-side
+  // Edge Function named "delete-user" — see the deployment instructions
+  // for that function's code. The function itself re-checks that the
+  // caller is an admin in the same company before it will act, so this
+  // isn't relying on the client alone for that safety check.
   async function deleteAuthAccount(userId) {
-    return { deleted: false };
+    try {
+      const { data, error } = await client.functions.invoke("delete-user", {
+        body: { userId },
+      });
+      if (error) return { deleted: false, error: error.message };
+      if (data && data.error) return { deleted: false, error: data.error };
+      return { deleted: true };
+    } catch (e) {
+      return { deleted: false, error: String(e) };
+    }
   }
 
   async function loadEmployees() {
@@ -1507,7 +1509,18 @@
 
   async function removeEmployee(userId, email) {
     const msgEl = document.getElementById("employeesMsg");
-    if (!window.confirm(`Remove ${email}'s portal access? Their submitted documents, timesheets and paystubs are kept on file, but they'll no longer be able to sign in and use the portal.`)) {
+    if (!window.confirm(`Remove ${email}'s portal access? This deletes their account entirely — they will no longer be able to sign in at all. Their submitted documents, timesheets and paystubs are kept on file.`)) {
+      return;
+    }
+
+    // Delete the actual auth account FIRST, while their profile/role rows
+    // still exist — the Edge Function uses those to confirm the caller is
+    // an admin in the SAME company as the person being removed. If this
+    // fails, stop here and leave everything untouched rather than deleting
+    // local records for an account that's still fully able to sign in.
+    const dispatch = await deleteAuthAccount(userId);
+    if (!dispatch.deleted) {
+      msgEl.innerHTML = `<div class="msg error">Couldn't delete the account${dispatch.error ? ": " + dispatch.error : ""}. Nothing was changed.</div>`;
       return;
     }
 
@@ -1515,14 +1528,10 @@
     const { error: profileError } = await client.from("profiles").delete().eq("user_id", userId);
 
     if (roleError || profileError) {
-      msgEl.innerHTML = `<div class="msg error">${(roleError || profileError).message}</div>`;
-      return;
+      msgEl.innerHTML = `<div class="msg error">Account deleted, but local cleanup hit an issue: ${(roleError || profileError).message}</div>`;
+    } else {
+      msgEl.innerHTML = `<div class="msg ok">${email}'s account has been fully deleted.</div>`;
     }
-
-    // Best-effort — currently a no-op until deleteAuthAccount is wired up.
-    await deleteAuthAccount(userId).catch(() => ({ deleted: false }));
-
-    msgEl.innerHTML = `<div class="msg ok">${email}'s access has been removed.</div>`;
     loadProfileMap().then(populateEmployeeSelect);
     loadEmployees();
   }
