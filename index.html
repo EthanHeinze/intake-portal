@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -182,6 +182,17 @@
     background: var(--surface);
     color: var(--ink);
   }
+  input[type="text"], input[type="date"], input[type="tel"], input[type="number"], textarea {
+    padding: 8px 11px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+    width: 100%;
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
   .btn-secondary {
     background: var(--accent-soft);
     color: var(--link);
@@ -297,6 +308,56 @@
 
   .employee-row { cursor: pointer; }
   .employee-row:hover .name { text-decoration: underline; }
+
+  /* Deal memo / safety template builder */
+  .deal-point-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .deal-point-row input { flex: 1; }
+  .deal-point-row .remove-link { flex-shrink: 0; white-space: nowrap; }
+
+  /* Approval chain */
+  .chain-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+    background: var(--warn-soft); color: var(--warn); white-space: nowrap;
+  }
+
+  /* Deal/safety sign card (employee side) */
+  .deal-card { border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .deal-card:last-child { margin-bottom: 0; }
+  .deal-card h4 { margin: 0 0 2px; font-size: 14.5px; }
+  .deal-card .deal-kind { font-size: 11.5px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 12px; }
+  .deal-point-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+  .deal-point-list li { font-size: 13px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--line); padding-bottom: 4px; }
+  .deal-point-list li .dp-label { color: var(--ink-soft); }
+  .deal-point-list li .dp-value { font-weight: 600; text-align: right; }
+  .deal-terms { font-size: 13px; color: var(--ink-soft); white-space: pre-wrap; margin: 0 0 14px; line-height: 1.5; }
+  .sign-box { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-top: 1px dashed var(--line); padding-top: 14px; }
+  .sign-box input { flex: 1; min-width: 180px; }
+  .sign-status { font-size: 13px; color: var(--ok); font-weight: 500; }
+  .sign-status.waiting { color: var(--warn); }
+
+  /* Cursive e-signature rendering */
+  .signature-preview-wrap { padding-top: 6px; }
+  .signature-preview {
+    font-family: "Great Vibes", cursive;
+    font-size: 30px;
+    line-height: 1.2;
+    color: var(--ink);
+    min-height: 40px;
+    padding: 2px 4px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .signature-preview:empty::before {
+    content: "Your signature will appear here";
+    font-family: var(--font-body, inherit);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .signature-preview-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+  .signature-rendered {
+    font-family: "Great Vibes", cursive;
+    font-size: 19px;
+    color: var(--ink);
+  }
 
   /* Toast notifications */
   #toastContainer {
@@ -543,6 +604,12 @@
     <!-- Employee view -->
     <div id="portalTab">
       <section class="panel">
+        <h2>My deals</h2>
+        <p class="desc">Review and sign your deal memo and safety acknowledgment.</p>
+        <div id="myDealsBody"><p class="empty">Nothing to sign right now.</p></div>
+      </section>
+
+      <section class="panel">
         <h2>Documents</h2>
         <p class="desc">Upload confidential documents for HR review.</p>
         <ul class="checklist hidden" id="documentsChecklist"></ul>
@@ -645,6 +712,14 @@
             <label for="inviteEndInput">End date</label>
             <input type="date" id="inviteEndInput" />
           </div>
+          <div>
+            <label for="inviteDealMemoSelect">Deal memo</label>
+            <select id="inviteDealMemoSelect"><option value="">None</option></select>
+          </div>
+          <div>
+            <label for="inviteSafetySelect">Safety acknowledgment</label>
+            <select id="inviteSafetySelect"><option value="">None</option></select>
+          </div>
         </div>
 
         <div class="kit-toggle-row">
@@ -721,6 +796,60 @@
         <ul class="file-list" id="adminPaystubsList"></ul>
         <p class="empty hidden" id="adminPaystubsEmpty">No paystubs issued yet.</p>
       </section>
+
+      <section class="panel">
+        <h2>Deal memos &amp; safety forms</h2>
+        <p class="desc">Build reusable templates with your own deal points and terms. Create more than one deal memo (e.g. a separate one for stunts or talent) and assign the right one per invite above.</p>
+
+        <div class="row2">
+          <div class="field">
+            <label for="templateTypeSelect">Type</label>
+            <select id="templateTypeSelect">
+              <option value="deal_memo">Deal memo</option>
+              <option value="safety">Safety acknowledgment</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="templateNameInput">Template name</label>
+            <input type="text" id="templateNameInput" placeholder="e.g. General Crew Deal Memo" />
+          </div>
+        </div>
+
+        <label class="block-label" style="margin-top:14px;">Deal points</label>
+        <div id="dealPointRows"></div>
+        <button type="button" class="preview-link" id="addDealPointBtn">+ Add deal point</button>
+
+        <div class="field" style="margin-top:14px;">
+          <label for="templateTermsInput">Terms / body text</label>
+          <textarea id="templateTermsInput" rows="4" placeholder="Standard contract language, policies, etc."></textarea>
+        </div>
+
+        <button class="btn-secondary" id="saveTemplateBtn" style="margin-top:12px;">Save template</button>
+        <div id="templateMsg"></div>
+
+        <ul class="file-list" id="templateList" style="margin-top:18px;"></ul>
+        <p class="empty hidden" id="templateEmpty">No templates yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Approval chain</h2>
+        <p class="desc">Documents route through these approvers in order before being marked approved. Leave empty and any admin can approve directly.</p>
+        <div class="upload-row">
+          <input type="text" id="chainApproverEmail" placeholder="approver@company.com" />
+          <input type="text" id="chainApproverLabel" placeholder="Label (e.g. Department Head)" />
+          <button class="btn-secondary" id="addChainStepBtn">Add step</button>
+        </div>
+        <div id="chainMsg"></div>
+        <ul class="file-list" id="chainList" style="margin-top:14px;"></ul>
+        <p class="empty hidden" id="chainEmpty">No approval chain set — any admin can approve directly.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Deals — pending signature</h2>
+        <p class="desc">Employee-signed deal memos and safety acknowledgments waiting on your countersignature.</p>
+        <ul class="file-list" id="countersignList"></ul>
+        <p class="empty hidden" id="countersignEmpty">Nothing waiting on you right now.</p>
+      </section>
     </div>
   </div>
 
@@ -769,6 +898,9 @@
   let profileMap = new Map();
   let currentCompany = null;
   let currentUserId = null;
+  let currentUserEmail = null;
+  let allTemplates = [];
+  let approvalChainSteps = [];
 
   // ---- Crew departments & roles (used by the invite form) ----
   const DEPARTMENTS = {
@@ -1300,10 +1432,11 @@
     body.innerHTML = `<p class="empty">Loading…</p>`;
     overlay.classList.remove("hidden");
 
-    const [{ data: docs }, { data: sheets }, { data: stubs }] = await Promise.all([
+    const [{ data: docs }, { data: sheets }, { data: stubs }, { data: deals }] = await Promise.all([
       client.from("documents").select("id, status, file_path, created_at, doc_type").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
       client.from("timesheets").select("id, status, file_path, created_at").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
       client.from("paystubs").select("id, file_path, created_at").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
+      client.from("esign_records").select("id, type, status, template_id, employee_signature, employee_signed_at").eq("user_id", profile.user_id),
     ]);
 
     const requested = (invite && invite.requested_documents) || [];
@@ -1327,6 +1460,16 @@
       ? `<ul class="file-list">${stubs.map((s) => `<li><span class="info"><span class="name">${s.file_path.split("/").pop()}</span><span class="email">${new Date(s.created_at).toLocaleDateString()}</span></span></li>`).join("")}</ul>`
       : `<p class="empty" style="padding:0;text-align:left;">No paystubs issued yet.</p>`;
 
+    const dealsHtml = (deals || []).length
+      ? `<ul class="file-list">${deals.map((d) => {
+          const t = allTemplates.find((tpl) => tpl.id === d.template_id);
+          const kind = t ? t.name : (d.type === "deal_memo" ? "Deal memo" : "Safety acknowledgment");
+          const statusLabel = d.status === "countersigned" ? "countersigned" : d.status === "awaiting_countersignature" ? "awaiting countersignature" : "not yet signed";
+          const statusClass = d.status === "countersigned" ? "approved" : d.status === "awaiting_countersignature" ? "pending" : "rejected";
+          return `<li><span class="info"><span class="name">${kind}</span><span class="email">${d.employee_signature ? `signed <span class="signature-rendered" style="font-size:15px;">${d.employee_signature}</span>` : "no signature yet"}</span></span><span class="status-badge status-${statusClass}">${statusLabel}</span></li>`;
+        }).join("")}</ul>`
+      : `<p class="empty" style="padding:0;text-align:left;">No deal memo or safety acknowledgment assigned.</p>`;
+
     const kitBit = invite && invite.kit_fee_enabled ? ` · $${Number(invite.kit_fee_rate || 0).toFixed(2)}/day kit` : "";
     const dates = invite && invite.start_date ? `${invite.start_date} – ${invite.end_date || "?"}` : null;
 
@@ -1342,6 +1485,9 @@
 
       <h3>Requested documents</h3>
       ${checklistHtml}
+
+      <h3>Deals</h3>
+      ${dealsHtml}
 
       <h3>Timesheets</h3>
       ${sheetsHtml}
@@ -1398,9 +1544,13 @@
     const emptyEl = document.getElementById(`admin${capitalize(bucket)}Empty`);
     listEl.innerHTML = "";
 
+    const cols = bucket === "documents"
+      ? "id, user_id, status, file_path, created_at, approval_step"
+      : "id, user_id, status, file_path, created_at";
+
     const { data: rows, error } = await client
       .from(table)
-      .select("id, user_id, status, file_path, created_at")
+      .select(cols)
       .order("created_at", { ascending: false });
 
     if (error || !rows || rows.length === 0) {
@@ -1414,9 +1564,16 @@
       const name = row.file_path.split("/").pop();
       const email = profileMap.get(row.user_id) || row.user_id;
 
+      const chainStep = (bucket === "documents" && row.status === "pending" && approvalChainSteps.length)
+        ? approvalChainSteps[(row.approval_step || 1) - 1]
+        : null;
+      const chainBit = chainStep
+        ? `<span class="chain-badge">Step ${row.approval_step || 1}/${approvalChainSteps.length}: ${chainStep.label || chainStep.approver_email}</span>`
+        : "";
+
       const left = document.createElement("span");
       left.className = "info";
-      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>`;
+      left.innerHTML = `<span class="name">${name}</span><span class="email">${email}</span>${chainBit ? `<span style="margin-top:4px;">${chainBit}</span>` : ""}`;
 
       const right = document.createElement("span");
       right.className = "actions";
@@ -1427,9 +1584,16 @@
         opt.value = s;
         opt.textContent = s;
         if (s === row.status) opt.selected = true;
+        if (bucket === "documents" && s === "approved" && chainStep && chainStep.approver_email !== currentUserEmail) {
+          opt.disabled = true;
+          opt.textContent = `approved (waiting on ${chainStep.label || chainStep.approver_email})`;
+        }
         select.appendChild(opt);
       });
-      select.addEventListener("change", () => updateStatus(table, row.id, select.value, bucket));
+      select.addEventListener("change", () => {
+        if (bucket === "documents") advanceDocumentApproval(row, select.value);
+        else updateStatus(table, row.id, select.value, bucket);
+      });
 
       const { data: signed } = await client.storage.from(bucket).createSignedUrl(row.file_path, 60 * 5);
 
@@ -1679,7 +1843,24 @@
   }
 
   async function loadCompanyBranding() {
-    const { data: company, error } = await client.from("companies").select("*").single();
+    // Scoped to the signed-in user's own company (via their profile),
+    // rather than blindly grabbing "the" companies row — required once
+    // more than one company can exist, and avoids a hard error from
+    // .single() if there's ever more than one row visible.
+    const { data: { user } } = await client.auth.getUser();
+    let companyId = null;
+    if (user) {
+      const { data: myProfile } = await client
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      companyId = myProfile && myProfile.company_id;
+    }
+
+    let query = client.from("companies").select("*");
+    query = companyId ? query.eq("id", companyId) : query.limit(1);
+    const { data: company, error } = await query.maybeSingle();
     if (error || !company) return;
     currentCompany = company;
 
@@ -1786,6 +1967,8 @@
     const end_date = document.getElementById("inviteEndInput").value;
     const kit_fee_enabled = document.getElementById("inviteKitToggle").checked;
     const kit_fee_rate = kit_fee_enabled ? Number(document.getElementById("inviteKitRateInput").value || 0) : null;
+    const deal_memo_template_id = document.getElementById("inviteDealMemoSelect").value || null;
+    const safety_template_id = document.getElementById("inviteSafetySelect").value || null;
 
     const checkedDocs = Array.from(
       document.querySelectorAll("#docRequestGrid input[type=checkbox]:checked")
@@ -1807,7 +1990,7 @@
       company_id: currentCompany.id,
       email, role, full_name, phone, department, crew_role,
       start_date, end_date, kit_fee_enabled, kit_fee_rate,
-      requested_documents,
+      requested_documents, deal_memo_template_id, safety_template_id,
     };
 
     const { data: inserted, error } = await client
@@ -1924,6 +2107,397 @@
     loadPendingInvites();
   }
 
+  // ---- Admin: deal memo / safety templates ----
+  function addDealPointRow(label, value) {
+    const container = document.getElementById("dealPointRows");
+    const row = document.createElement("div");
+    row.className = "deal-point-row";
+    const labelInput = document.createElement("input");
+    labelInput.type = "text"; labelInput.className = "dp-label";
+    labelInput.placeholder = "Label (e.g. Rate)"; labelInput.value = label || "";
+    const valueInput = document.createElement("input");
+    valueInput.type = "text"; valueInput.className = "dp-value";
+    valueInput.placeholder = "Value (e.g. $500/day)"; valueInput.value = value || "";
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button"; removeBtn.className = "remove-link";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => row.remove());
+    row.appendChild(labelInput); row.appendChild(valueInput); row.appendChild(removeBtn);
+    container.appendChild(row);
+  }
+  document.getElementById("addDealPointBtn").addEventListener("click", () => addDealPointRow());
+  addDealPointRow();
+
+  document.getElementById("saveTemplateBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("templateMsg");
+    const type = document.getElementById("templateTypeSelect").value;
+    const name = document.getElementById("templateNameInput").value.trim();
+    const terms_text = document.getElementById("templateTermsInput").value.trim();
+    const deal_points = Array.from(document.querySelectorAll("#dealPointRows .deal-point-row"))
+      .map((row) => ({
+        label: row.querySelector(".dp-label").value.trim(),
+        value: row.querySelector(".dp-value").value.trim(),
+      }))
+      .filter((dp) => dp.label);
+
+    if (!name) {
+      msgEl.innerHTML = `<div class="msg error">Give this template a name.</div>`;
+      return;
+    }
+
+    const { error } = await client.from("esign_templates").insert({
+      company_id: currentCompany.id, type, name, deal_points, terms_text,
+    });
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Template saved.</div>`;
+    document.getElementById("templateNameInput").value = "";
+    document.getElementById("templateTermsInput").value = "";
+    document.getElementById("dealPointRows").innerHTML = "";
+    addDealPointRow();
+    loadTemplates();
+  });
+
+  async function loadTemplates() {
+    const { data } = await client.from("esign_templates").select("*").order("created_at", { ascending: true });
+    allTemplates = data || [];
+    renderTemplateList();
+    populateTemplateSelects();
+  }
+
+  function renderTemplateList() {
+    const listEl = document.getElementById("templateList");
+    const emptyEl = document.getElementById("templateEmpty");
+    listEl.innerHTML = "";
+    if (!allTemplates.length) { emptyEl.classList.remove("hidden"); return; }
+    emptyEl.classList.add("hidden");
+    allTemplates.forEach((t) => {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+      const count = (t.deal_points || []).length;
+      left.innerHTML = `<span class="name">${t.name}</span><span class="email">${t.type === "deal_memo" ? "Deal memo" : "Safety acknowledgment"} · ${count} deal point${count === 1 ? "" : "s"}</span>`;
+      const right = document.createElement("span");
+      right.className = "actions";
+      const del = document.createElement("button");
+      del.className = "remove-link"; del.textContent = "Delete";
+      del.addEventListener("click", () => deleteTemplate(t.id));
+      right.appendChild(del);
+      li.appendChild(left); li.appendChild(right);
+      listEl.appendChild(li);
+    });
+  }
+
+  async function deleteTemplate(id) {
+    if (!window.confirm("Delete this template? Invites already assigned to it will lose that assignment.")) return;
+    await client.from("esign_templates").delete().eq("id", id);
+    loadTemplates();
+  }
+
+  function populateTemplateSelects() {
+    const dealSel = document.getElementById("inviteDealMemoSelect");
+    const safetySel = document.getElementById("inviteSafetySelect");
+    if (!dealSel || !safetySel) return;
+    [[dealSel, "deal_memo"], [safetySel, "safety"]].forEach(([sel, type]) => {
+      const current = sel.value;
+      sel.innerHTML = `<option value="">None</option>`;
+      allTemplates.filter((t) => t.type === type).forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = t.id; opt.textContent = t.name;
+        sel.appendChild(opt);
+      });
+      sel.value = current || "";
+    });
+  }
+
+  // ---- Admin: approval chain ----
+  async function loadApprovalChain() {
+    const { data } = await client
+      .from("approval_chain")
+      .select("*")
+      .order("step_order", { ascending: true });
+    approvalChainSteps = data || [];
+    renderApprovalChain();
+  }
+
+  function renderApprovalChain() {
+    const listEl = document.getElementById("chainList");
+    const emptyEl = document.getElementById("chainEmpty");
+    listEl.innerHTML = "";
+    if (!approvalChainSteps.length) { emptyEl.classList.remove("hidden"); return; }
+    emptyEl.classList.add("hidden");
+    approvalChainSteps.forEach((step, idx) => {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+      left.innerHTML = `<span class="name">${idx + 1}. ${step.label || step.approver_email}</span><span class="email">${step.approver_email}</span>`;
+      const right = document.createElement("span");
+      right.className = "actions";
+      if (idx > 0) {
+        const up = document.createElement("button");
+        up.className = "preview-link"; up.textContent = "↑ Move up";
+        up.addEventListener("click", () => moveChainStep(idx, -1));
+        right.appendChild(up);
+      }
+      if (idx < approvalChainSteps.length - 1) {
+        const down = document.createElement("button");
+        down.className = "preview-link"; down.textContent = "↓ Move down";
+        down.addEventListener("click", () => moveChainStep(idx, 1));
+        right.appendChild(down);
+      }
+      const del = document.createElement("button");
+      del.className = "remove-link"; del.textContent = "Remove";
+      del.addEventListener("click", () => removeChainStep(step.id));
+      right.appendChild(del);
+      li.appendChild(left); li.appendChild(right);
+      listEl.appendChild(li);
+    });
+  }
+
+  document.getElementById("addChainStepBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("chainMsg");
+    const email = document.getElementById("chainApproverEmail").value.trim();
+    const label = document.getElementById("chainApproverLabel").value.trim();
+    if (!email) {
+      msgEl.innerHTML = `<div class="msg error">Enter an approver email.</div>`;
+      return;
+    }
+    const nextOrder = approvalChainSteps.length
+      ? Math.max(...approvalChainSteps.map((s) => s.step_order)) + 1
+      : 1;
+    const { error } = await client.from("approval_chain").insert({
+      company_id: currentCompany.id, step_order: nextOrder, approver_email: email, label,
+    });
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    document.getElementById("chainApproverEmail").value = "";
+    document.getElementById("chainApproverLabel").value = "";
+    msgEl.innerHTML = "";
+    loadApprovalChain();
+  });
+
+  async function removeChainStep(id) {
+    await client.from("approval_chain").delete().eq("id", id);
+    loadApprovalChain();
+  }
+
+  async function moveChainStep(idx, dir) {
+    const a = approvalChainSteps[idx];
+    const b = approvalChainSteps[idx + dir];
+    if (!a || !b) return;
+    await Promise.all([
+      client.from("approval_chain").update({ step_order: b.step_order }).eq("id", a.id),
+      client.from("approval_chain").update({ step_order: a.step_order }).eq("id", b.id),
+    ]);
+    loadApprovalChain();
+  }
+
+  // Routes a document approval through the chain instead of approving it
+  // outright. Only used for the "documents" bucket — timesheets keep the
+  // simple pending/approved/rejected toggle.
+  async function advanceDocumentApproval(row, newStatus) {
+    const msgEl = document.getElementById("adminDocumentsMsg");
+    const { data: { user } } = await client.auth.getUser();
+
+    if (newStatus === "pending") {
+      await client.from("documents").update({ status: "pending" }).eq("id", row.id);
+      loadAdminList("documents", "documents");
+      return;
+    }
+
+    if (newStatus === "rejected") {
+      await client.from("documents").update({ status: "rejected" }).eq("id", row.id);
+      await client.from("document_approvals").insert({
+        document_id: row.id, step_order: row.approval_step || 1, approver_id: user.id, decision: "rejected",
+      });
+      msgEl.innerHTML = `<div class="msg ok">Rejected.</div>`;
+      loadAdminList("documents", "documents");
+      return;
+    }
+
+    // newStatus === "approved"
+    if (!approvalChainSteps.length) {
+      await client.from("documents").update({ status: "approved" }).eq("id", row.id);
+      await client.from("document_approvals").insert({
+        document_id: row.id, step_order: 1, approver_id: user.id, decision: "approved",
+      });
+      msgEl.innerHTML = `<div class="msg ok">Approved.</div>`;
+      loadAdminList("documents", "documents");
+      return;
+    }
+
+    const currentStep = row.approval_step || 1;
+    await client.from("document_approvals").insert({
+      document_id: row.id, step_order: currentStep, approver_id: user.id, decision: "approved",
+    });
+
+    if (currentStep < approvalChainSteps.length) {
+      await client.from("documents").update({ approval_step: currentStep + 1 }).eq("id", row.id);
+      msgEl.innerHTML = `<div class="msg ok">Approved at step ${currentStep} of ${approvalChainSteps.length} — sent to the next approver.</div>`;
+    } else {
+      await client.from("documents").update({ status: "approved" }).eq("id", row.id);
+      msgEl.innerHTML = `<div class="msg ok">Fully approved.</div>`;
+    }
+    loadAdminList("documents", "documents");
+  }
+
+  // ---- Employee: my deals (sign deal memo / safety acknowledgment) ----
+  async function loadMyDeals() {
+    const body = document.getElementById("myDealsBody");
+    const { data: { user } } = await client.auth.getUser();
+    if (!user || !user.email) return;
+
+    const { data: invite } = await client
+      .from("company_invites")
+      .select("deal_memo_template_id, safety_template_id")
+      .eq("email", user.email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const templateIds = [
+      invite && invite.deal_memo_template_id,
+      invite && invite.safety_template_id,
+    ].filter(Boolean);
+
+    if (!templateIds.length) {
+      body.innerHTML = `<p class="empty">Nothing to sign right now.</p>`;
+      return;
+    }
+
+    const { data: templates } = await client
+      .from("esign_templates")
+      .select("*")
+      .in("id", templateIds);
+
+    let cardsHtml = "";
+    for (const template of templates || []) {
+      let { data: record } = await client
+        .from("esign_records")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("template_id", template.id)
+        .maybeSingle();
+
+      if (!record) {
+        const { data: inserted } = await client
+          .from("esign_records")
+          .insert({ user_id: user.id, template_id: template.id, type: template.type, status: "awaiting_signature" })
+          .select()
+          .single();
+        record = inserted;
+      }
+      if (!record) continue;
+
+      const pointsHtml = (template.deal_points || []).length
+        ? `<ul class="deal-point-list">${template.deal_points.map((dp) => `<li><span class="dp-label">${dp.label}</span><span class="dp-value">${dp.value}</span></li>`).join("")}</ul>`
+        : "";
+      const termsHtml = template.terms_text ? `<p class="deal-terms">${template.terms_text}</p>` : "";
+
+      let signBoxHtml;
+      if (record.status === "countersigned") {
+        signBoxHtml = `<p class="sign-status">✓ Fully executed — signed <span class="signature-rendered">${record.employee_signature}</span> on ${new Date(record.employee_signed_at).toLocaleDateString()}; countersigned <span class="signature-rendered">${record.admin_signature || ""}</span> on ${new Date(record.admin_signed_at).toLocaleDateString()}.</p>`;
+      } else if (record.status === "awaiting_countersignature") {
+        signBoxHtml = `<p class="sign-status waiting">You signed <span class="signature-rendered">${record.employee_signature}</span> on ${new Date(record.employee_signed_at).toLocaleDateString()} — awaiting company countersignature.</p>`;
+      } else {
+        signBoxHtml = `
+          <div class="sign-box">
+            <input type="text" id="sign-${record.id}" placeholder="Type your full legal name to sign" />
+            <button class="btn-secondary" data-sign-id="${record.id}">Sign</button>
+          </div>
+          <div class="signature-preview-wrap">
+            <div class="signature-preview" id="sign-preview-${record.id}"></div>
+            <p class="signature-preview-hint">This is treated as your legal signature on this document.</p>
+          </div>`;
+      }
+
+      cardsHtml += `
+        <div class="deal-card">
+          <div class="deal-kind">${template.type === "deal_memo" ? "Deal memo" : "Safety acknowledgment"}</div>
+          <h4>${template.name}</h4>
+          ${pointsHtml}
+          ${termsHtml}
+          ${signBoxHtml}
+        </div>`;
+    }
+
+    body.innerHTML = cardsHtml || `<p class="empty">Nothing to sign right now.</p>`;
+    body.querySelectorAll("button[data-sign-id]").forEach((btn) => {
+      btn.addEventListener("click", () => signDeal(btn.dataset.signId));
+    });
+    body.querySelectorAll('input[id^="sign-"]').forEach((input) => {
+      const preview = document.getElementById(`sign-preview-${input.id.replace("sign-", "")}`);
+      if (!preview) return;
+      input.addEventListener("input", () => { preview.textContent = input.value; });
+    });
+  }
+
+  async function signDeal(recordId) {
+    const nameInput = document.getElementById(`sign-${recordId}`);
+    const name = nameInput.value.trim();
+    if (!name) {
+      window.alert("Type your full name to sign.");
+      return;
+    }
+    await client.from("esign_records").update({
+      employee_signature: name,
+      employee_signed_at: new Date().toISOString(),
+      status: "awaiting_countersignature",
+    }).eq("id", recordId);
+    loadMyDeals();
+  }
+
+  // ---- Admin: countersign pending deals ----
+  async function loadPendingCountersignatures() {
+    const listEl = document.getElementById("countersignList");
+    const emptyEl = document.getElementById("countersignEmpty");
+    listEl.innerHTML = "";
+
+    const { data: rows } = await client
+      .from("esign_records")
+      .select("id, user_id, type, employee_signature, employee_signed_at, template_id")
+      .eq("status", "awaiting_countersignature")
+      .order("employee_signed_at", { ascending: true });
+
+    if (!rows || rows.length === 0) { emptyEl.classList.remove("hidden"); return; }
+    emptyEl.classList.add("hidden");
+
+    for (const row of rows) {
+      const template = allTemplates.find((t) => t.id === row.template_id);
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "info";
+      const kind = template ? template.name : (row.type === "deal_memo" ? "Deal memo" : "Safety acknowledgment");
+      left.innerHTML = `<span class="name">${profileMap.get(row.user_id) || row.user_id}</span><span class="email">${kind} · signed <span class="signature-rendered" style="font-size:15px;">${row.employee_signature}</span> on ${new Date(row.employee_signed_at).toLocaleDateString()}</span>`;
+      const right = document.createElement("span");
+      right.className = "actions";
+      const btn = document.createElement("button");
+      btn.className = "btn-secondary";
+      btn.textContent = "Countersign";
+      btn.addEventListener("click", () => countersignDeal(row.id));
+      right.appendChild(btn);
+      li.appendChild(left); li.appendChild(right);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function countersignDeal(recordId) {
+    const { data: { user } } = await client.auth.getUser();
+    const adminName = window.prompt("Type your full name to countersign:");
+    if (!adminName || !adminName.trim()) return;
+    await client.from("esign_records").update({
+      admin_signature: adminName.trim(),
+      admin_signed_at: new Date().toISOString(),
+      admin_id: user.id,
+      status: "countersigned",
+    }).eq("id", recordId);
+    loadPendingCountersignatures();
+  }
+
   // ---- Session bootstrap ----
   async function showApp() {
     authView.classList.add("hidden");
@@ -1931,6 +2505,7 @@
 
     const { data: { user } } = await client.auth.getUser();
     currentUserId = user.id;
+    currentUserEmail = user.email;
 
     const { data: roleRow } = await client
       .from("user_roles")
@@ -1944,15 +2519,19 @@
       tabAdminBtn.classList.remove("hidden");
       await loadProfileMap();
       populateEmployeeSelect();
+      await loadTemplates();
+      await loadApprovalChain();
       loadAdminList("documents", "documents");
       loadAdminList("timesheets", "timesheets");
       loadAdminPaystubs();
       loadPendingInvites();
       loadEmployees();
+      loadPendingCountersignatures();
     }
 
     await loadCompanyBranding();
     await loadMyRequestedDocuments();
+    loadMyDeals();
 
     loadList("documents", "documents", true);
     loadList("timesheets", "timesheets", true);
