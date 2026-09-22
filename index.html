@@ -249,6 +249,55 @@
   }
   .hidden { display: none !important; }
 
+  /* Requested-items checklist (employee "My Portal" + admin overview) */
+  .checklist { list-style: none; margin: 0 0 18px; padding: 0; }
+  .checklist li {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 0; font-size: 13.5px;
+  }
+  .checklist .mark {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .checklist li.got .mark { background: var(--ok-soft); color: var(--ok); }
+  .checklist li.missing .mark { background: var(--warn-soft); color: var(--warn); }
+  .checklist li.missing .label { color: var(--ink); font-weight: 500; }
+  .checklist li.got .label { color: var(--ink-soft); }
+
+  /* Employee overview modal (admin) */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(30, 26, 20, 0.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 50;
+  }
+  .modal-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); max-width: 620px; width: 100%;
+    padding: 28px 30px; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 18px; right: 20px;
+    background: none; border: none; font-size: 20px; line-height: 1;
+    color: var(--ink-faint); cursor: pointer;
+  }
+  .modal-close:hover { color: var(--ink); }
+  .modal-card h2 { margin: 0 0 2px; font-size: 17px; }
+  .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 20px; }
+  .modal-card h3 {
+    font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); margin: 22px 0 8px; font-weight: 700;
+  }
+  .modal-card h3:first-of-type { margin-top: 0; }
+  .summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .summary-chip {
+    font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+    background: var(--page); border: 1px solid var(--line); color: var(--ink-soft);
+  }
+
+  .employee-row { cursor: pointer; }
+  .employee-row:hover .name { text-decoration: underline; }
+
   /* Toast notifications */
   #toastContainer {
     position: fixed;
@@ -496,7 +545,9 @@
       <section class="panel">
         <h2>Documents</h2>
         <p class="desc">Upload confidential documents for HR review.</p>
+        <ul class="checklist hidden" id="documentsChecklist"></ul>
         <div class="upload-row">
+          <select id="documentsTypeSelect"></select>
           <input type="file" id="documentsFile" />
           <button class="btn-secondary" data-bucket="documents" data-table="documents">Upload</button>
         </div>
@@ -684,6 +735,13 @@
       <button id="previewCloseBtn" class="preview-close">&times;</button>
     </div>
     <div id="previewContent" class="preview-content"></div>
+  </div>
+</div>
+
+<div id="employeeModalOverlay" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="employeeModalClose" aria-label="Close">&times;</button>
+    <div id="employeeModalBody"></div>
   </div>
 </div>
 
@@ -995,9 +1053,16 @@
       msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
       return;
     }
+
+    const insertPayload = { user_id: user.id, status: "pending", file_path: path };
+    if (bucket === "documents") {
+      const typeSelect = document.getElementById("documentsTypeSelect");
+      if (typeSelect && typeSelect.value) insertPayload.doc_type = typeSelect.value;
+    }
+
     const { error: insertError } = await client
       .from(table)
-      .insert({ user_id: user.id, status: "pending", file_path: path });
+      .insert(insertPayload);
 
     if (insertError) {
       msgEl.innerHTML = `<div class="msg error">File uploaded but record failed: ${insertError.message}</div>`;
@@ -1009,6 +1074,54 @@
   }
 
   // ---- Employee listing (own records only) ----
+  let myRequestedDocs = [];
+
+  async function loadMyRequestedDocuments() {
+    const { data: { user } } = await client.auth.getUser();
+    if (!user || !user.email) { myRequestedDocs = []; return; }
+    const { data } = await client
+      .from("company_invites")
+      .select("requested_documents")
+      .eq("email", user.email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    myRequestedDocs = (data && data.requested_documents) || [];
+  }
+
+  function renderDocumentsChecklist(rows) {
+    const ul = document.getElementById("documentsChecklist");
+    if (!ul) return;
+    if (!myRequestedDocs.length) { ul.classList.add("hidden"); ul.innerHTML = ""; return; }
+    const submittedTypes = new Set(
+      (rows || []).filter((r) => r.status !== "rejected" && r.doc_type).map((r) => r.doc_type)
+    );
+    ul.innerHTML = myRequestedDocs.map((item) => {
+      const got = submittedTypes.has(item);
+      return `<li class="${got ? "got" : "missing"}"><span class="mark">${got ? "✓" : "!"}</span><span class="label">${item}</span></li>`;
+    }).join("");
+    ul.classList.remove("hidden");
+  }
+
+  function populateDocumentsTypeSelect(rows) {
+    const select = document.getElementById("documentsTypeSelect");
+    if (!select) return;
+    const submittedTypes = new Set(
+      (rows || []).filter((r) => r.status !== "rejected" && r.doc_type).map((r) => r.doc_type)
+    );
+    const outstanding = myRequestedDocs.filter((d) => !submittedTypes.has(d));
+    select.innerHTML = "";
+    outstanding.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item; opt.textContent = item;
+      select.appendChild(opt);
+    });
+    const otherOpt = document.createElement("option");
+    otherOpt.value = "Other document";
+    otherOpt.textContent = outstanding.length ? "Other document" : "General document";
+    select.appendChild(otherOpt);
+  }
+
   async function loadList(bucket, table, showDownload) {
     const listEl = document.getElementById(`${bucket}List`);
     const emptyEl = document.getElementById(`${bucket}Empty`);
@@ -1017,10 +1130,19 @@
     const { data: { user } } = await client.auth.getUser();
     if (!user) return;
 
+    const cols = bucket === "documents"
+      ? "id, status, file_path, created_at, doc_type"
+      : "id, status, file_path, created_at";
+
     const { data: rows, error } = await client
       .from(table)
-      .select("id, status, file_path, created_at")
+      .select(cols)
       .order("created_at", { ascending: false });
+
+    if (bucket === "documents") {
+      populateDocumentsTypeSelect(rows || []);
+      renderDocumentsChecklist(rows || []);
+    }
 
     if (error || !rows || rows.length === 0) {
       if (emptyEl) emptyEl.classList.remove("hidden");
@@ -1034,7 +1156,9 @@
 
       const left = document.createElement("span");
       left.className = "info";
-      left.innerHTML = `<span class="name">${name}</span>`;
+      left.innerHTML = row.doc_type
+        ? `<span class="name">${row.doc_type}</span><span class="email">${name}</span>`
+        : `<span class="name">${name}</span>`;
 
       const right = document.createElement("span");
       right.className = "actions";
@@ -1125,6 +1249,7 @@
 
     for (const p of profiles) {
       const li = document.createElement("li");
+      li.className = "employee-row";
       const left = document.createElement("span");
       left.className = "info";
 
@@ -1138,9 +1263,16 @@
       }
 
       left.innerHTML = `<span class="name">${p.email}</span><span class="email">${subtitle}</span>`;
+      left.addEventListener("click", () => openEmployeeModal(p, accessRole, invite));
 
       const right = document.createElement("span");
       right.className = "actions";
+
+      const viewBtn = document.createElement("button");
+      viewBtn.className = "remove-link";
+      viewBtn.textContent = "View";
+      viewBtn.addEventListener("click", () => openEmployeeModal(p, accessRole, invite));
+      right.appendChild(viewBtn);
 
       if (p.user_id === currentUserId) {
         const tag = document.createElement("span");
@@ -1160,6 +1292,72 @@
       listEl.appendChild(li);
     }
   }
+
+  // ---- Admin: employee overview modal ----
+  async function openEmployeeModal(profile, accessRole, invite) {
+    const overlay = document.getElementById("employeeModalOverlay");
+    const body = document.getElementById("employeeModalBody");
+    body.innerHTML = `<p class="empty">Loading…</p>`;
+    overlay.classList.remove("hidden");
+
+    const [{ data: docs }, { data: sheets }, { data: stubs }] = await Promise.all([
+      client.from("documents").select("id, status, file_path, created_at, doc_type").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
+      client.from("timesheets").select("id, status, file_path, created_at").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
+      client.from("paystubs").select("id, file_path, created_at").eq("user_id", profile.user_id).order("created_at", { ascending: false }),
+    ]);
+
+    const requested = (invite && invite.requested_documents) || [];
+    const submittedTypes = new Set((docs || []).filter((d) => d.status !== "rejected" && d.doc_type).map((d) => d.doc_type));
+
+    const checklistHtml = requested.length
+      ? `<ul class="checklist">${requested.map((item) => {
+          const got = submittedTypes.has(item);
+          return `<li class="${got ? "got" : "missing"}"><span class="mark">${got ? "✓" : "!"}</span><span class="label">${item}</span></li>`;
+        }).join("")}</ul>`
+      : `<p class="empty" style="padding:0 0 16px;text-align:left;">No specific documents were requested on their invite.</p>`;
+
+    const sheetCounts = { pending: 0, approved: 0, rejected: 0 };
+    (sheets || []).forEach((s) => { if (sheetCounts[s.status] != null) sheetCounts[s.status]++; });
+
+    const sheetsHtml = (sheets || []).length
+      ? `<ul class="file-list">${sheets.map((s) => `<li><span class="info"><span class="name">${s.file_path.split("/").pop()}</span><span class="email">${new Date(s.created_at).toLocaleDateString()}</span></span><span class="status-badge status-${s.status}">${s.status}</span></li>`).join("")}</ul>`
+      : `<p class="empty" style="padding:0;text-align:left;">No timesheets submitted yet.</p>`;
+
+    const stubsHtml = (stubs || []).length
+      ? `<ul class="file-list">${stubs.map((s) => `<li><span class="info"><span class="name">${s.file_path.split("/").pop()}</span><span class="email">${new Date(s.created_at).toLocaleDateString()}</span></span></li>`).join("")}</ul>`
+      : `<p class="empty" style="padding:0;text-align:left;">No paystubs issued yet.</p>`;
+
+    const kitBit = invite && invite.kit_fee_enabled ? ` · $${Number(invite.kit_fee_rate || 0).toFixed(2)}/day kit` : "";
+    const dates = invite && invite.start_date ? `${invite.start_date} – ${invite.end_date || "?"}` : null;
+
+    body.innerHTML = `
+      <h2>${profile.email}</h2>
+      <p class="modal-sub">${invite ? `${invite.crew_role || accessRole}${invite.department ? " (" + invite.department + ")" : ""}` : accessRole}${kitBit}</p>
+      <div class="summary-row">
+        <span class="summary-chip">${accessRole}</span>
+        ${dates ? `<span class="summary-chip">${dates}</span>` : ""}
+        <span class="summary-chip">${sheetCounts.pending} timesheet${sheetCounts.pending === 1 ? "" : "s"} pending</span>
+        <span class="summary-chip">${(stubs || []).length} paystub${(stubs || []).length === 1 ? "" : "s"} issued</span>
+      </div>
+
+      <h3>Requested documents</h3>
+      ${checklistHtml}
+
+      <h3>Timesheets</h3>
+      ${sheetsHtml}
+
+      <h3>Paystubs</h3>
+      ${stubsHtml}
+    `;
+  }
+
+  function closeEmployeeModal() {
+    document.getElementById("employeeModalOverlay").classList.add("hidden");
+  }
+  document.getElementById("employeeModalClose").addEventListener("click", closeEmployeeModal);
+  document.getElementById("employeeModalOverlay").addEventListener("click", (e) => {
+    if (e.target.id === "employeeModalOverlay") closeEmployeeModal();
+  });
 
   async function removeEmployee(userId, email) {
     const msgEl = document.getElementById("employeesMsg");
@@ -1754,6 +1952,7 @@
     }
 
     await loadCompanyBranding();
+    await loadMyRequestedDocuments();
 
     loadList("documents", "documents", true);
     loadList("timesheets", "timesheets", true);
