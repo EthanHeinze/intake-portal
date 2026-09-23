@@ -70,12 +70,20 @@
     margin: 0 auto;
     padding: 40px 24px 64px;
   }
+  .topbar-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 24px 0;
+    margin-bottom: 20px;
+  }
   header.top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 22px;
-    padding-bottom: 18px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 10px; }
@@ -637,21 +645,23 @@
 
   <!-- ===== App view ===== -->
   <div id="appView" class="hidden">
-    <header class="top">
-      <div class="brand">
-        <div class="brand-mark" id="brandMark">HR</div>
-        <div>
-          <p class="eyebrow" id="brandEyebrow">Buzzflix</p>
-          <h1>HR Intake Portal</h1>
-          <p class="company-tagline" id="brandTagline"></p>
+    <div class="topbar-card">
+      <header class="top">
+        <div class="brand">
+          <div class="brand-mark" id="brandMark">HR</div>
+          <div>
+            <p class="eyebrow" id="brandEyebrow">Buzzflix</p>
+            <h1>HR Intake Portal</h1>
+            <p class="company-tagline" id="brandTagline"></p>
+          </div>
         </div>
-      </div>
-      <button id="signOutBtn">Sign out</button>
-    </header>
+        <button id="signOutBtn">Sign out</button>
+      </header>
 
-    <div class="tabs" id="tabs">
-      <button class="tab-btn active" id="tabPortalBtn">My Portal</button>
-      <button class="tab-btn hidden" id="tabAdminBtn">Admin Review</button>
+      <div class="tabs" id="tabs">
+        <button class="tab-btn active" id="tabPortalBtn">My Portal</button>
+        <button class="tab-btn hidden" id="tabAdminBtn">Admin Review</button>
+      </div>
     </div>
 
     <!-- Employee view -->
