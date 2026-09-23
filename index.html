@@ -52,16 +52,16 @@
     -webkit-font-smoothing: antialiased;
   }
   .shell {
-    max-width: 760px;
+    max-width: 1080px;
     margin: 0 auto;
-    padding: 56px 24px 96px;
+    padding: 40px 24px 64px;
   }
   header.top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 28px;
-    padding-bottom: 20px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 10px; }
@@ -90,7 +90,7 @@
   #signOutBtn:hover { color: var(--ink); border-color: var(--ink-faint); background: var(--surface); }
 
   /* Tabs */
-  .tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
   .tab-btn {
     background: none; border: none; border-bottom: 2px solid transparent;
     color: var(--ink-faint); font-size: 14px; font-weight: 600;
@@ -159,16 +159,26 @@
   .msg.ok { background: var(--ok-soft); color: var(--ok); }
 
   /* Sections */
+  #portalTab, #adminTab {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (min-width: 860px) {
+    #portalTab, #adminTab { grid-template-columns: 1fr 1fr; }
+  }
+  .span-2 { grid-column: 1 / -1; }
+
   section.panel {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 26px 28px;
-    margin-bottom: 20px;
+    padding: 22px 24px;
   }
   section.panel h2 { font-size: 15.5px; margin: 0 0 4px; font-weight: 600; letter-spacing: -0.01em; }
-  section.panel p.desc { color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; }
+  section.panel p.desc { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
   .upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   input[type="file"] {
     flex: 1; min-width: 160px; font-size: 13px; color: var(--ink-soft);
@@ -603,7 +613,7 @@
 
     <!-- Employee view -->
     <div id="portalTab">
-      <section class="panel">
+      <section class="panel span-2">
         <h2>My deals</h2>
         <p class="desc">Review and sign your deal memo and safety acknowledgment.</p>
         <div id="myDealsBody"><p class="empty">Nothing to sign right now.</p></div>
@@ -644,7 +654,7 @@
 
     <!-- Admin view -->
     <div id="adminTab" class="hidden">
-      <section class="panel">
+      <section class="panel span-2">
         <h2>Company Settings</h2>
         <p class="desc">Customize how the portal looks for your team.</p>
         <label for="companyNameInput">Company name</label>
@@ -672,7 +682,7 @@
         <div id="companyLogoMsg"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel span-2">
         <h2>Invite crew</h2>
         <p class="desc">They'll only be able to sign up once invited. Add production details so the invite carries everything they need.</p>
 
@@ -797,7 +807,7 @@
         <p class="empty hidden" id="adminPaystubsEmpty">No paystubs issued yet.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel span-2">
         <h2>Deal memos &amp; safety forms</h2>
         <p class="desc">Build reusable templates with your own deal points and terms. Create more than one deal memo (e.g. a separate one for stunts or talent) and assign the right one per invite above.</p>
 
