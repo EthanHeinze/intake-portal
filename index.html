@@ -44,12 +44,26 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: var(--page);
     color: var(--ink);
     font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     font-size: 15px;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+  }
+  #pageBg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--page);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+  }
+  #pageBg .bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--page);
+    opacity: 1;
   }
   .shell {
     max-width: 1080px;
@@ -319,6 +333,32 @@
   .employee-row { cursor: pointer; }
   .employee-row:hover .name { text-decoration: underline; }
 
+  /* Portal background settings */
+  .bg-section { margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--line); }
+  .bg-preview-wrap { margin: 8px 0 16px; }
+  .bg-preview {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-color: var(--page);
+    overflow: hidden;
+  }
+  .bg-preview .bg-preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--page);
+    opacity: 0.6;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    margin: 4px 0 2px;
+  }
+
   /* Deal memo / safety template builder */
   .deal-point-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
   .deal-point-row input { flex: 1; }
@@ -567,6 +607,8 @@
 </head>
 <body>
 
+<div id="pageBg"><div class="bg-overlay"></div></div>
+
 <div class="shell">
 
   <!-- ===== Auth view ===== -->
@@ -680,6 +722,36 @@
           <button class="btn-secondary" id="uploadLogoBtn">Upload logo</button>
         </div>
         <div id="companyLogoMsg"></div>
+
+        <div class="bg-section">
+          <label class="block-label">Portal background</label>
+          <p class="desc" style="margin-bottom:10px;">Shows behind the whole portal for everyone at your company.</p>
+
+          <div class="bg-preview-wrap">
+            <div id="bgPreviewBox" class="bg-preview"><div class="bg-preview-overlay" id="bgPreviewOverlay"></div></div>
+          </div>
+
+          <label for="companyBgFile">Background image</label>
+          <input type="file" id="companyBgFile" accept="image/*" />
+
+          <label for="bgOpacityInput" style="margin-top:14px;">Opacity (<span id="bgOpacityValue">40</span>%)</label>
+          <input type="range" id="bgOpacityInput" min="0" max="100" value="40" />
+
+          <div class="row2">
+            <div class="field">
+              <label for="bgPosXInput">Horizontal crop</label>
+              <input type="range" id="bgPosXInput" min="0" max="100" value="50" />
+            </div>
+            <div class="field">
+              <label for="bgPosYInput">Vertical crop</label>
+              <input type="range" id="bgPosYInput" min="0" max="100" value="50" />
+            </div>
+          </div>
+
+          <button class="btn-secondary" id="saveBgBtn" style="margin-top:12px;">Save background</button>
+          <button class="remove-link" id="removeBgBtn" style="margin-left:10px;">Remove background</button>
+          <div id="bgMsg"></div>
+        </div>
       </section>
 
       <section class="panel span-2">
@@ -1915,8 +1987,111 @@
       document.getElementById("companyTaglineInput").value = company.tagline || "";
       document.getElementById("companyPrimaryColorInput").value = company.primary_color || "#1a1a1a";
       document.getElementById("companyAccentColorInput").value = company.accent_color || "#b4550b";
+
+      const opacityPct = company.background_opacity != null ? Math.round(Number(company.background_opacity) * 100) : 40;
+      const posX = company.background_pos_x != null ? Number(company.background_pos_x) : 50;
+      const posY = company.background_pos_y != null ? Number(company.background_pos_y) : 50;
+      document.getElementById("bgOpacityInput").value = opacityPct;
+      document.getElementById("bgOpacityValue").textContent = opacityPct;
+      document.getElementById("bgPosXInput").value = posX;
+      document.getElementById("bgPosYInput").value = posY;
+
+      const previewBox = document.getElementById("bgPreviewBox");
+      const previewOverlay = document.getElementById("bgPreviewOverlay");
+      previewBox.style.backgroundPosition = `${posX}% ${posY}%`;
+      previewOverlay.style.opacity = String(1 - opacityPct / 100);
+      if (company.background_path) {
+        const { data: bgSigned } = await client.storage.from("branding").createSignedUrl(company.background_path, 60 * 60);
+        previewBox.style.backgroundImage = bgSigned ? `url("${bgSigned.signedUrl}")` : "none";
+      } else {
+        previewBox.style.backgroundImage = "none";
+      }
     }
+
+    await applyPageBackground(company);
   }
+
+  // ---- Portal background (applies to everyone at the company) ----
+  async function applyPageBackground(company) {
+    const bgEl = document.getElementById("pageBg");
+    const overlay = bgEl.querySelector(".bg-overlay");
+    const opacity = company && company.background_opacity != null ? Number(company.background_opacity) : 0.4;
+    const posX = company && company.background_pos_x != null ? Number(company.background_pos_x) : 50;
+    const posY = company && company.background_pos_y != null ? Number(company.background_pos_y) : 50;
+
+    bgEl.style.backgroundPosition = `${posX}% ${posY}%`;
+
+    if (company && company.background_path) {
+      const { data: signed } = await client.storage.from("branding").createSignedUrl(company.background_path, 60 * 60);
+      if (signed) {
+        bgEl.style.backgroundImage = `url("${signed.signedUrl}")`;
+        overlay.style.opacity = String(1 - opacity);
+        return;
+      }
+    }
+    bgEl.style.backgroundImage = "none";
+    overlay.style.opacity = "1";
+  }
+
+  // Live preview as the admin drags the sliders — no save needed to see the effect.
+  function syncBgPreview() {
+    const opacityPct = Number(document.getElementById("bgOpacityInput").value);
+    const posX = Number(document.getElementById("bgPosXInput").value);
+    const posY = Number(document.getElementById("bgPosYInput").value);
+    document.getElementById("bgOpacityValue").textContent = opacityPct;
+    document.getElementById("bgPreviewBox").style.backgroundPosition = `${posX}% ${posY}%`;
+    document.getElementById("bgPreviewOverlay").style.opacity = String(1 - opacityPct / 100);
+  }
+  ["bgOpacityInput", "bgPosXInput", "bgPosYInput"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", syncBgPreview);
+  });
+
+  document.getElementById("companyBgFile").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById("bgPreviewBox").style.backgroundImage = `url("${URL.createObjectURL(file)}")`;
+  });
+
+  document.getElementById("saveBgBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("bgMsg");
+    const file = document.getElementById("companyBgFile").files[0];
+    const background_opacity = Number(document.getElementById("bgOpacityInput").value) / 100;
+    const background_pos_x = Number(document.getElementById("bgPosXInput").value);
+    const background_pos_y = Number(document.getElementById("bgPosYInput").value);
+
+    const updates = { background_opacity, background_pos_x, background_pos_y };
+
+    if (file) {
+      const ext = file.name.split(".").pop();
+      const path = `${currentCompany.id}/background.${ext}`;
+      const { error: uploadError } = await client.storage.from("branding").upload(path, file, { upsert: true });
+      if (uploadError) {
+        msgEl.innerHTML = `<div class="msg error">Upload failed: ${uploadError.message}</div>`;
+        return;
+      }
+      updates.background_path = path;
+    }
+
+    const { error } = await client.from("companies").update(updates).eq("id", currentCompany.id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Background saved.</div>`;
+    document.getElementById("companyBgFile").value = "";
+    loadCompanyBranding();
+  });
+
+  document.getElementById("removeBgBtn").addEventListener("click", async () => {
+    const msgEl = document.getElementById("bgMsg");
+    const { error } = await client.from("companies").update({ background_path: null }).eq("id", currentCompany.id);
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="msg ok">Background removed.</div>`;
+    loadCompanyBranding();
+  });
 
   document.getElementById("saveCompanySettingsBtn").addEventListener("click", async () => {
     const msgEl = document.getElementById("companySettingsMsg");
